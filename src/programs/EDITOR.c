@@ -64,16 +64,62 @@ typedef struct {
     void (*screen_clear_shell)(void);
     char (*keyboard_read)(void);
     void (*move_cursor)(size_t,size_t);
-     void (*change_cursor)(uint8_t,uint8_t);
-     void (*save_file)(const char*, uint8_t*);
-     void (*rng_seed)(void);
-     uint32_t (*get_random)(uint32_t);
-     void (*busy_delay)(uint32_t);
-     void (*set_color)(uint8_t);
-     char (*keyboard_getchar)(void);
-     void (*beep)(uint32_t, uint32_t);
-     void (*set_vga_mode)(uint8_t);
-     void (*draw_pixel)(int, int, uint8_t);
+    void (*change_cursor)(uint8_t,uint8_t);
+    void (*save_file)(const char*, uint8_t*);
+    void (*rng_seed)(void);
+    uint32_t (*get_random)(uint32_t);
+    void (*busy_delay)(uint32_t);
+    void (*set_color)(uint8_t);
+    char (*keyboard_getchar)(void);
+    void (*beep)(uint32_t, uint32_t);
+    void (*set_vga_mode)(uint8_t);
+    void (*draw_pixel)(int, int, uint8_t);
+    int (*load_file)(const char*, uint8_t*);
+    int (*delete_file)(const char*);
+    void (*list_files)(void);
+    int (*get_file_list)(void*, int);
+    void (*disable_cursor)(void);
+    void (*mouse_init)(void);
+    void (*enable_cursor)(void);
+    void (*keyboard_init)(void);
+    void (*mouse_handler)(int*, int*, int*, int*);
+    void (*run)(char*);
+    void (*get_rtc_time)(uint8_t*, uint8_t*, uint8_t*);
+    void (*get_rtc_date)(uint8_t*, uint8_t*, uint8_t*);
+    void (*save_file_size)(char*, uint8_t*, uint32_t);
+    size_t (*strlen)(const char*);
+    void (*graphics_init)(void);
+    int (*fat16_create_file)(const char *filename, uint32_t size);
+    int (*fat16_mkdir)(const char *dirname);
+    int (*fat16_file_load)(const char *filename, uint8_t *buffer);
+    int (*fat16_file_exists)(const char *filename);
+    int (*fat16_file_save)(const char *filename, uint8_t *buffer, uint32_t size);
+    void (*debug_print)(const char* str);
+    void (*debug_print_hex)(uint32_t n);
+    void (*debug_putc)(char c);
+    int (*strcmp)(const char* s1, const char* s2);
+    char* (*strcpy)(char* dest, const char* src);
+    char* (*strcat)(char* dest, const char* src);
+    int (*memcmp)(const void* s1, const void* s2, size_t n);
+    void (*memset)(void* dest, uint8_t val, size_t n);
+    void (*memcpy)(void* dest, const void* src, size_t n);
+    char (*toupper)(char c);
+    void (*hex_to_str)(uint32_t n, char* dest);
+    void (*int_to_str)(uint32_t n, char* dest);
+    int (*fat16_delete_file)(const char* filename);
+    int (*fat16_chdir)(const char* dirname);
+    int (*fat16_rmdir)(const char* dirname);
+    int (*fat16_list_root)(void* entries, int max_entries);
+    void (*start_shell)();
+    void (*graphics_loading_screen)();
+    void (*graphics_clear_screen_g)(uint8_t color);
+    void (*graphics_put_char)(int x, int y, char c, uint8_t color);
+    void (*graphics_put_string)(int x, int y, const char* str, uint8_t color);
+    void (*graphics_draw_box)(int x, int y, int w, int h, uint8_t color);
+    void (*graphics_draw_button)(int x, int y, int w, int h, const char* label, uint8_t color);
+    void (*graphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
+    void (*graphics_putpixel)(int x, int y, uint8_t color);
+
 } os_api_t;
  
 void next_line();
@@ -249,8 +295,6 @@ void move_cursor(uint8_t x,uint8_t y){
 }
 
 void print_top_nav(){
-    char* text_buffer=(char*) 0xBAB000;
-    char* current_filename=text_buffer - 12;
     print_banner_border(' ',40-6);
     move_cursor(0,40-6);
     print_string("TEXT EDITOR (",13);
@@ -378,9 +422,7 @@ void handle_input(char c) {
         }
         if(c=='S' || c=='s'){
             parse_line_buffer_to_text_buffer();
-            char* text_buffer=(char*) 0xBAB000;
-            char* current_filename=text_buffer - 12;
-            os_api->save_file(current_filename,text_buffer);
+            os_api->fat16_file_save(current_filename, (uint8_t*)text_buffer, text_length);
             saved=1;
             return;
         }

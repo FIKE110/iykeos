@@ -90,7 +90,7 @@ typedef struct {
     int (*load_file)(const char*, uint8_t*);
     int (*delete_file)(const char*);
     void (*list_files)(void);
-    int (*get_file_list)(void*, int);
+    int (*get_file_list)(char* files);
     void (*disable_cursor)(void);
     void (*mouse_init)(void);
     void (*enable_cursor)(void);
@@ -131,7 +131,7 @@ typedef struct {
     void (*graphics_draw_box)(int x, int y, int w, int h, uint8_t color);
     void (*graphics_draw_button)(int x, int y, int w, int h, const char* label, uint8_t color);
     void (*graphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
-    void (*graphcs_putpixel)(int x, int y, uint8_t color)
+    void (*graphics_putpixel)(int x, int y, uint8_t color);
 
 } os_api_t;
 
@@ -332,8 +332,8 @@ int handle_files_click(int x, int y, int w, int h, int mx, int my, int scroll_of
         return 0;
     }
 
-    fat16_dir_entry entries[256];
-    int count = os_api->fat16_list_root(entries, 256);
+    fat16_dir_entry entries[512];
+    int count = os_api->fat16_list_root(entries, 512);
     
     int row = 0;
     for (int i = 0; i < count; i++) {
@@ -1121,7 +1121,7 @@ void window() {
             // Programs Submenu Clicks
             if (programs_menu_open) {
                 int pm_x = 15;
-                int pm_y = 10;
+                int pm_y = 14;
                 
                 // Shell
                 if (is_hover(mx, my, pm_x + 1, pm_y + 2, 18, 1)) {

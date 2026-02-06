@@ -186,7 +186,7 @@ int fat16_file_load(const char* filename, uint8_t* buffer) {
 
             for (uint8_t s = 0; s < sectors_per_cluster && bytes_left > 0; s++) {
                 uint32_t sector = first_sector + s;
-                if (read_sector_fat(sector, temp) != 0) return -2;
+                if (read_sector(sector, temp) != 0) return -2;
 
                 uint32_t to_copy = (bytes_left < SECTOR_SIZE) ? bytes_left : SECTOR_SIZE;
                 memcpy(ptr, temp, to_copy);
