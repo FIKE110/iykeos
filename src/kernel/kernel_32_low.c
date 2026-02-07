@@ -1,10 +1,6 @@
 #include <stdint.h>
 #include <stddef.h>
-// #include <memory_os.h>
-// #include <disk.h>
-// #include <file.h>
-// #include <keyboard.h>
-// #include <screen.h>
+#include <file.h>
 
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
@@ -168,6 +164,9 @@ void update_arrow(int selected) {
 
     vga[(80*7+10)+(80*(selected)*3)-3] = arrow;
 }
+
+ typedef void (*entry_t)();
+
 
 void keyboard_poll(int* selected) {
     uint8_t scancode = get_key();

@@ -608,5 +608,4 @@ void main(void) {
     init_api();
     os_api->screen_clear_shell();
     game_loop();
-    os_api->screen_clear_shell();
 }

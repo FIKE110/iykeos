@@ -196,7 +196,7 @@ void place_food() {
 // Draw the food
 void draw_food() {
     if (food.active) {
-        os_api->vgraphics_put_char(food.x, food.y, '*', FOOD_COLOR);
+        os_api->graphics_put_char(food.x, food.y, '*', FOOD_COLOR);
     }
 }
 
@@ -359,11 +359,11 @@ void init_snake() {
 void draw_snake() {
     // Draw body segments first (so head appears on top)
     for (int i = 1; i < snake.length; i++) {
-        os_api->vgraphics_put_char(snake.body[i].x, snake.body[i].y, 'o', SNAKE_BODY_COLOR);
+        os_api->graphics_put_char(snake.body[i].x, snake.body[i].y, 'o', SNAKE_BODY_COLOR);
     }
     
     // Draw head with bright color
-    os_api->vgraphics_put_char(snake.head_x, snake.head_y, 'o', SNAKE_HEAD_COLOR);
+    os_api->graphics_put_char(snake.head_x, snake.head_y, 'o', SNAKE_HEAD_COLOR);
 }
 
 // Update snake position - returns false if game over
@@ -450,15 +450,15 @@ void handle_input(char c) {
 // Draw game bounds (box)
 void draw_bounds() {
     // Draw box outline
-    os_api->vgraphics_draw_box(GAME_X, GAME_Y, GAME_WIDTH, GAME_HEIGHT, 
+    os_api->graphics_draw_box(GAME_X, GAME_Y, GAME_WIDTH, GAME_HEIGHT, 
                                VGA_COLOR(COLOR_LGREEN, COLOR_BLACK));
     
     // Draw title
-    os_api->vgraphics_put_string(GAME_X + (GAME_WIDTH - 10) / 2, GAME_Y, 
+    os_api->graphics_put_string(GAME_X + (GAME_WIDTH - 10) / 2, GAME_Y, 
                                  " SNAKE ", VGA_COLOR(COLOR_WHITE, COLOR_BLUE));
     
     // Draw instructions
-    os_api->vgraphics_put_string(2, 24, "WASD/Arrows: Move | Q: Quit", 
+    os_api->graphics_put_string(2, 24, "WASD/Arrows: Move | Q: Quit", 
                                  VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
 }
 
@@ -466,7 +466,7 @@ void draw_bounds() {
 void clear_game_area() {
     for (int y = GAME_Y + 1; y < GAME_Y + GAME_HEIGHT - 1; y++) {
         for (int x = GAME_X + 1; x < GAME_X + GAME_WIDTH - 1; x++) {
-            os_api->vgraphics_put_char(x, y, ' ', VGA_COLOR(COLOR_BLACK, COLOR_BLACK));
+            os_api->graphics_put_char(x, y, ' ', VGA_COLOR(COLOR_BLACK, COLOR_BLACK));
         }
     }
 }
@@ -475,13 +475,13 @@ void clear_game_area() {
 void draw_score() {
     char score_str[20];
     os_api->int_to_str(score, score_str);
-    os_api->vgraphics_put_string(2, 23, "Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
-    os_api->vgraphics_put_string(9, 23, score_str, VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
+    os_api->graphics_put_string(2, 23, "Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
+    os_api->graphics_put_string(9, 23, score_str, VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
     
     // Show high score (use cached value)
     os_api->int_to_str(high_score, score_str);
-    os_api->vgraphics_put_string(60, 23, "Hi: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
-    os_api->vgraphics_put_string(64, 23, score_str, VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
+    os_api->graphics_put_string(60, 23, "Hi: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
+    os_api->graphics_put_string(64, 23, score_str, VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
 }
 
 // Draw game over screen
@@ -492,29 +492,29 @@ void draw_game_over() {
     int box_w = 30;
     int box_h = 10;
     
-    os_api->vgraphics_draw_box(box_x, box_y, box_w, box_h, VGA_COLOR(COLOR_RED, COLOR_BLACK));
+    os_api->graphics_draw_box(box_x, box_y, box_w, box_h, VGA_COLOR(COLOR_RED, COLOR_BLACK));
     
     // Title
-    os_api->vgraphics_put_string(box_x + 8, box_y + 1, "GAME OVER!", VGA_COLOR(COLOR_LRED, COLOR_BLACK));
+    os_api->graphics_put_string(box_x + 8, box_y + 1, "GAME OVER!", VGA_COLOR(COLOR_LRED, COLOR_BLACK));
     
     // Final score
     char score_str[20];
     os_api->int_to_str(score, score_str);
-    os_api->vgraphics_put_string(box_x + 3, box_y + 3, "Final Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
-    os_api->vgraphics_put_string(box_x + 16, box_y + 3, score_str, VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
+    os_api->graphics_put_string(box_x + 3, box_y + 3, "Final Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
+    os_api->graphics_put_string(box_x + 16, box_y + 3, score_str, VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
     
     // High score (use cached value loaded at game start)
     os_api->int_to_str(high_score, score_str);
-    os_api->vgraphics_put_string(box_x + 3, box_y + 5, "High Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
-    os_api->vgraphics_put_string(box_x + 15, box_y + 5, score_str, VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
+    os_api->graphics_put_string(box_x + 3, box_y + 5, "High Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
+    os_api->graphics_put_string(box_x + 15, box_y + 5, score_str, VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
     
     // New high score message
     if (score > high_score && score > 0) {
-        os_api->vgraphics_put_string(box_x + 6, box_y + 6, "NEW HIGH SCORE!", VGA_COLOR(COLOR_LGREEN, COLOR_BLACK));
+        os_api->graphics_put_string(box_x + 6, box_y + 6, "NEW HIGH SCORE!", VGA_COLOR(COLOR_LGREEN, COLOR_BLACK));
     }
     
     // Instructions
-    os_api->vgraphics_put_string(box_x + 2, box_y + 8, "R: Restart  Q: Quit", VGA_COLOR(COLOR_LGRAY, COLOR_BLACK));
+    os_api->graphics_put_string(box_x + 2, box_y + 8, "R: Restart  Q: Quit", VGA_COLOR(COLOR_LGRAY, COLOR_BLACK));
 }
 
 // Main game loop
@@ -526,15 +526,14 @@ void game_loop() {
     high_score = load_high_score();
     
     while (playing) {
-        // Initialize virtual graphics
-        os_api->vgraphics_init();
+        // Initialize graphics
+        os_api->graphics_init();
         
         // Clear screen
-        os_api->vgraphics_clear(COLOR_BLACK);
+        os_api->graphics_clear_screen_g(COLOR_BLACK);
         
-        // Draw static elements ONCE
+        // Draw game bounds
         draw_bounds();
-        os_api->vgraphics_repaint();
         
         // Initialize snake
         init_snake();
@@ -547,16 +546,17 @@ void game_loop() {
         
         // Main game loop
         while (!game_over) {
-            // Clear only game area (not borders)
+            // Clear game area
             clear_game_area();
             
-            // Draw dynamic elements
+            // Draw food
             draw_food();
-            draw_snake();
-            draw_score();
             
-            // ONE atomic update
-            os_api->vgraphics_repaint();
+            // Draw snake
+            draw_snake();
+            
+            // Draw score
+            draw_score();
             
             // Handle input (non-blocking)
             char c = os_api->keyboard_getchar();
@@ -585,7 +585,6 @@ void game_loop() {
         // Game over - show screen and wait for input
         if (game_over) {
             draw_game_over();
-            os_api->vgraphics_repaint();
             
             // Wait for R (restart) or Q (quit)
             while (1) {
@@ -595,10 +594,6 @@ void game_loop() {
                     break;
                 }
                 if (c == 'r' || c == 'R') {
-                    // Restart - clear and redraw static elements
-                    os_api->vgraphics_clear(COLOR_BLACK);
-                    draw_bounds();
-                    os_api->vgraphics_repaint();
                     break;  // Restart game
                 }
             }

@@ -2,7 +2,7 @@
 set -e
 
 IMG_FILE="./build/harddisk.img"
-IMG_SIZE_MB=32
+IMG_SIZE_MB=9
 MNT_POINT="/mnt/learn-os-temp"
 
 MBR_BIN="./build/boot.bin"

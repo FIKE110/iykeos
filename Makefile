@@ -166,6 +166,12 @@ test-os-build: build-programs $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN)
 	@bash ./build-hdd.sh
 	@$(QEMU) -hda $(DISK_IMG)
 
+flash: test-os-build
+	@echo "  FLASH   $(DISK_IMG) -> /dev/sdb"
+	@sudo dd if=$(DISK_IMG) of=/dev/sdb bs=4M status=progress
+	@sync
+	@echo "  Flash complete! You can now boot from /dev/sdb"
+
 clean:
 	@rm -rf $(BUILD_DIR)/*.o $(BUILD_DIR)/*.elf $(BUILD_DIR)/*.bin $(BUILD_DIR)/*.img
 	@rm -rf $(LIB_OUT_DIR)/*.o
@@ -179,5 +185,6 @@ help:
 	@echo "  build-kernel     - Build kernel"
 	@echo "  build-programs   - Build user programs"
 	@echo "  test-os-build    - Build full OS and run in QEMU"
+	@echo "  flash            - Write harddisk.img to /dev/sdb (flash drive)"
 	@echo "  clean            - Remove build artifacts"
 	@echo "  help             - Show this help"
