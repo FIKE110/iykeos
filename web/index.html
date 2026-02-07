@@ -3,17 +3,18 @@
 <head>
 <title>IykeOS Emulator</title>
 <script src="./js/libv86.js"></script>
-<!-- <script src="build/v86_all.js?98e7110c2"></script> -->
 <style>
   body {
     background: #0e0e0e;
     color: white;
-    font-family: Arial;
+    font-family: Arial, sans-serif;
     text-align: center;
+    margin: 0;
+    padding: 20px;
   }
 
   #screen_container {
-    width: 900px;            /* medium size */
+    width: 900px;
     height: 600px;
     margin: 10px auto;
     border: 3px solid #333;
@@ -36,10 +37,24 @@
     margin: 10px;
   }
 
-  button {
+  button, input[type="button"] {
     padding: 8px 14px;
     margin: 4px;
     cursor: pointer;
+    background: #333;
+    color: white;
+    border: 1px solid #555;
+    border-radius: 3px;
+  }
+
+  button:hover, input[type="button"]:hover {
+    background: #444;
+  }
+
+  button:disabled, input[type="button"]:disabled {
+    background: #222;
+    color: #666;
+    cursor: not-allowed;
   }
 
   .fullscreen {
@@ -50,6 +65,159 @@
     left: 0;
     z-index: 9999;
   }
+
+  /* Loading overlay styles */
+  #loading_overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    font-family: 'Courier New', monospace;
+  }
+
+  .loading-title {
+    font-size: 28px;
+    color: #00ff88;
+    margin-bottom: 10px;
+    text-shadow: 0 0 10px #00ff88;
+  }
+
+  .loading-subtitle {
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 20px;
+  }
+
+  .cache-status {
+    font-size: 11px;
+    color: #00ff88;
+    margin-bottom: 10px;
+    padding: 5px 15px;
+    background: rgba(0, 255, 136, 0.1);
+    border: 1px solid #00ff88;
+    border-radius: 3px;
+  }
+
+  .cache-status.cached {
+    color: #00ccff;
+    border-color: #00ccff;
+    background: rgba(0, 204, 255, 0.1);
+  }
+
+  .cache-status.partial {
+    color: #ffaa00;
+    border-color: #ffaa00;
+    background: rgba(255, 170, 0, 0.1);
+  }
+
+  .progress-container {
+    width: 400px;
+    height: 20px;
+    background: #0a0a0a;
+    border: 2px solid #00ff88;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: linear-gradient(90deg, #00ff88 0%, #00cc6a 100%);
+    width: 0%;
+    transition: width 0.3s ease;
+    box-shadow: 0 0 10px #00ff88;
+  }
+
+  .progress-bar.cached {
+    background: linear-gradient(90deg, #00ccff 0%, #0099cc 100%);
+    box-shadow: 0 0 10px #00ccff;
+  }
+
+  .progress-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 12px;
+    color: white;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px black;
+  }
+
+  .loading-file {
+    margin-top: 15px;
+    font-size: 11px;
+    color: #666;
+  }
+
+  .loading-stats {
+    margin-top: 10px;
+    font-size: 11px;
+    color: #555;
+  }
+
+  .cache-actions {
+    margin-top: 15px;
+  }
+
+  .cache-actions button {
+    font-size: 11px;
+    padding: 5px 10px;
+  }
+
+  /* File cache list */
+  .file-cache-list {
+    margin-top: 15px;
+    text-align: left;
+    font-size: 10px;
+    color: #888;
+    background: rgba(0, 0, 0, 0.3);
+    padding: 10px 15px;
+    border-radius: 5px;
+    max-width: 400px;
+  }
+
+  .file-cache-item {
+    display: flex;
+    justify-content: space-between;
+    margin: 3px 0;
+  }
+
+  .file-cache-item .filename {
+    color: #aaa;
+  }
+
+  .file-cache-item .status {
+    color: #00ff88;
+  }
+
+  .file-cache-item .status.cached {
+    color: #00ccff;
+  }
+
+  /* Boot messages */
+  .boot-log {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    font-size: 10px;
+    color: #00ff88;
+    text-align: left;
+    opacity: 0.7;
+    max-height: 80px;
+    overflow-y: auto;
+  }
+
+  .boot-line {
+    margin: 2px 0;
+  }
 </style>
 </head>
 
@@ -57,55 +225,440 @@
 
 <h2>IykeOS – Browser Emulator</h2>
 
-   <div id="runtime_options" style="display: block">
-        <input type="button" value="Pause" id="run">
-        <input type="button" value="Reset" id="reset">
-        <input type="button" value="Exit" id="exit">
-        <input type="button" value="Save State" id="save_state">
-        <input type="button" value="Load State" id="load_state"> <input type="file" style="display: none" id="load_state_input">
-        <input type="button" value="Disable mouse" id="toggle_mouse">
-        <input type="button" value="Lock mouse" id="lock_mouse">
-        <input type="button" value="Go fullscreen" id="fullscreen">
-        <input type="button" value="Take screenshot" id="take_screenshot">
-        <input type="button" value="Enable theatre mode" id="toggle_theatre">
+<div id="runtime_options" style="display: block">
+    <input type="button" value="Pause" id="run" disabled>
+    <input type="button" value="Reset" id="reset">
+    <input type="button" value="Exit" id="exit">
+    <input type="button" value="Save State" id="save_state" disabled>
+    <input type="button" value="Load State" id="load_state" disabled>
+    <input type="file" style="display: none" id="load_state_input">
+    <input type="button" value="Disable mouse" id="toggle_mouse" disabled>
+    <input type="button" value="Lock mouse" id="lock_mouse" disabled>
+    <input type="button" value="Go fullscreen" id="fullscreen" disabled>
+    <input type="button" value="Take screenshot" id="take_screenshot" disabled>
+    <input type="button" value="Enable theatre mode" id="toggle_theatre" disabled>
+    <input type="button" value="Clear Cache" id="clear_cache">
 
-        <label>
-            Scale:
-            <input type="number" min="0.25" step="0.25" value="1.0" id="scale" style="width: 50px">
-        </label>
-    </div>
-    <pre style="display: none" id="loading"></pre>
+    <label>
+        Scale:
+        <input type="number" min="0.25" step="0.25" value="1.0" id="scale" style="width: 50px">
+    </label>
 </div>
 
 <div id="screen_container">
     <div style="white-space: pre; font: 14px monospace; line-height: 14px"></div>
     <canvas style="display: none"></canvas>
+    
+    <!-- Loading Overlay -->
+    <div id="loading_overlay">
+        <div class="loading-title">IYKEOS</div>
+        <div class="loading-subtitle">32-bit Educational Operating System</div>
+        <div class="cache-status" id="cache_status">Checking cache...</div>
+        
+        <div class="progress-container">
+            <div class="progress-bar" id="progress_bar"></div>
+            <div class="progress-text" id="progress_text">0%</div>
+        </div>
+        
+        <div class="loading-file" id="loading_file">Initializing...</div>
+        <div class="loading-stats" id="loading_stats"></div>
+        
+        <div class="file-cache-list" id="file_cache_list" style="display: none;">
+            <div class="file-cache-item">
+                <span class="filename">v86.wasm</span>
+                <span class="status" id="status_wasm">loading...</span>
+            </div>
+            <div class="file-cache-item">
+                <span class="filename">seabios.bin</span>
+                <span class="status" id="status_bios">loading...</span>
+            </div>
+            <div class="file-cache-item">
+                <span class="filename">vgabios.bin</span>
+                <span class="status" id="status_vga">loading...</span>
+            </div>
+            <div class="file-cache-item">
+                <span class="filename">harddisk.img</span>
+                <span class="status" id="status_hdd">loading...</span>
+            </div>
+        </div>
+        
+        <div class="cache-actions" id="cache_actions" style="display: none;">
+            <button id="refresh_cache">Re-download All</button>
+        </div>
+        
+        <div class="boot-log" id="boot_log">
+            <div class="boot-line">[BOOT] IYKEOS v0.3</div>
+            <div class="boot-line">[BOOT] x86 32-bit Protected Mode</div>
+        </div>
+    </div>
 </div>
 
 <script>
 "use strict";
 
-window.onload = function()
+// IndexedDB Cache Manager
+const CacheManager = {
+    DB_NAME: 'IYKEOS_Cache',
+    DB_VERSION: 1,
+    STORE_NAME: 'assets',
+    
+    db: null,
+    
+    init: function() {
+        return new Promise((resolve, reject) => {
+            const request = indexedDB.open(this.DB_NAME, this.DB_VERSION);
+            
+            request.onerror = () => reject(request.error);
+            request.onsuccess = () => {
+                this.db = request.result;
+                resolve();
+            };
+            
+            request.onupgradeneeded = (event) => {
+                const db = event.target.result;
+                if (!db.objectStoreNames.contains(this.STORE_NAME)) {
+                    db.createObjectStore(this.STORE_NAME, { keyPath: 'url' });
+                }
+            };
+        });
+    },
+    
+    get: function(url) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                resolve(null);
+                return;
+            }
+            
+            const transaction = this.db.transaction([this.STORE_NAME], 'readonly');
+            const store = transaction.objectStore(this.STORE_NAME);
+            const request = store.get(url);
+            
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    set: function(url, data, metadata = {}) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                resolve();
+                return;
+            }
+            
+            const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.STORE_NAME);
+            
+            const entry = {
+                url: url,
+                data: data,
+                timestamp: Date.now(),
+                size: data.byteLength || data.length,
+                ...metadata
+            };
+            
+            const request = store.put(entry);
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    delete: function(url) {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                resolve();
+                return;
+            }
+            
+            const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.STORE_NAME);
+            const request = store.delete(url);
+            
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    clear: function() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                resolve();
+                return;
+            }
+            
+            const transaction = this.db.transaction([this.STORE_NAME], 'readwrite');
+            const store = transaction.objectStore(this.STORE_NAME);
+            const request = store.clear();
+            
+            request.onsuccess = () => resolve();
+            request.onerror = () => reject(request.error);
+        });
+    },
+    
+    getAllCached: function() {
+        return new Promise((resolve, reject) => {
+            if (!this.db) {
+                resolve([]);
+                return;
+            }
+            
+            const transaction = this.db.transaction([this.STORE_NAME], 'readonly');
+            const store = transaction.objectStore(this.STORE_NAME);
+            const request = store.getAllKeys();
+            
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+    }
+};
+
+// Asset URLs
+const ASSETS = {
+    wasm: "./assets/v86.wasm",
+    bios: "./bios/seabios.bin",
+    vga: "./bios/vgabios.bin",
+    hdd: "./assets/harddisk.img"
+};
+
+window.onload = async function()
 {
-    window.emulator = new V86({
-        wasm_path: "./assets/v86.wasm",
+    const loadingOverlay = document.getElementById("loading_overlay");
+    const progressBar = document.getElementById("progress_bar");
+    const progressText = document.getElementById("progress_text");
+    const loadingFile = document.getElementById("loading_file");
+    const loadingStats = document.getElementById("loading_stats");
+    const cacheStatus = document.getElementById("cache_status");
+    const cacheActions = document.getElementById("cache_actions");
+    const fileCacheList = document.getElementById("file_cache_list");
+    const bootLog = document.getElementById("boot_log");
+    
+    // Status elements
+    const statusWasm = document.getElementById("status_wasm");
+    const statusBios = document.getElementById("status_bios");
+    const statusVga = document.getElementById("status_vga");
+    const statusHdd = document.getElementById("status_hdd");
+    
+    // Initialize cache
+    try {
+        await CacheManager.init();
+        addBootMessage("[CACHE] IndexedDB initialized");
+    } catch (e) {
+        addBootMessage("[CACHE] IndexedDB not available, using network only");
+        cacheStatus.textContent = "Cache not available - using network";
+        cacheStatus.style.color = "#ffaa00";
+        cacheStatus.style.borderColor = "#ffaa00";
+    }
+    
+    let forceRefresh = false;
+    
+    function addBootMessage(msg) {
+        const line = document.createElement("div");
+        line.className = "boot-line";
+        line.textContent = msg;
+        bootLog.appendChild(line);
+        bootLog.scrollTop = bootLog.scrollHeight;
+    }
+    
+    function updateProgress(percent, filename, loaded, total) {
+        progressBar.style.width = percent + "%";
+        progressText.textContent = Math.round(percent) + "%";
+        if (filename) {
+            loadingFile.textContent = filename;
+        }
+        if (loaded && total) {
+            const loadedMB = (loaded / 1024 / 1024).toFixed(1);
+            const totalMB = (total / 1024 / 1024).toFixed(1);
+            loadingStats.textContent = `${loadedMB} MB / ${totalMB} MB`;
+        }
+    }
+    
+    function setFileStatus(element, status, isCached) {
+        element.textContent = status;
+        if (isCached) {
+            element.classList.add("cached");
+        }
+    }
+    
+    function enableControls() {
+        document.getElementById("run").disabled = false;
+        document.getElementById("save_state").disabled = false;
+        document.getElementById("load_state").disabled = false;
+        document.getElementById("toggle_mouse").disabled = false;
+        document.getElementById("lock_mouse").disabled = false;
+        document.getElementById("fullscreen").disabled = false;
+        document.getElementById("take_screenshot").disabled = false;
+        document.getElementById("toggle_theatre").disabled = false;
+    }
+    
+    // Check cached assets
+    fileCacheList.style.display = "block";
+    const cachedAssets = {};
+    let totalCachedSize = 0;
+    let cachedCount = 0;
+    
+    for (const [key, url] of Object.entries(ASSETS)) {
+        try {
+            const cached = await CacheManager.get(url);
+            cachedAssets[key] = cached;
+            
+            if (cached) {
+                totalCachedSize += cached.size;
+                cachedCount++;
+                const sizeKB = (cached.size / 1024).toFixed(0);
+                
+                if (key === "wasm") setFileStatus(statusWasm, `✓ cached (${sizeKB} KB)`, true);
+                if (key === "bios") setFileStatus(statusBios, `✓ cached (${sizeKB} KB)`, true);
+                if (key === "vga") setFileStatus(statusVga, `✓ cached (${sizeKB} KB)`, true);
+                if (key === "hdd") setFileStatus(statusHdd, `✓ cached (${(cached.size / 1024 / 1024).toFixed(1)} MB)`, true);
+                
+                addBootMessage(`[CACHE] Found ${key}: ${key === "hdd" ? (cached.size / 1024 / 1024).toFixed(1) + " MB" : sizeKB + " KB"}`);
+            } else {
+                if (key === "wasm") setFileStatus(statusWasm, "downloading...", false);
+                if (key === "bios") setFileStatus(statusBios, "downloading...", false);
+                if (key === "vga") setFileStatus(statusVga, "downloading...", false);
+                if (key === "hdd") setFileStatus(statusHdd, "downloading...", false);
+            }
+        } catch (e) {
+            console.error(`Cache check failed for ${key}:`, e);
+        }
+    }
+    
+    // Update cache status message
+    if (cachedCount === 4) {
+        const totalMB = (totalCachedSize / 1024 / 1024).toFixed(1);
+        cacheStatus.textContent = `✓ All assets cached (${totalMB} MB) - Instant load!`;
+        cacheStatus.classList.add("cached");
+        progressBar.classList.add("cached");
+        addBootMessage("[CACHE] All assets found in cache");
+        cacheActions.style.display = "block";
+    } else if (cachedCount > 0) {
+        const totalMB = (totalCachedSize / 1024 / 1024).toFixed(1);
+        cacheStatus.textContent = `⚠ Partial cache (${cachedCount}/4 files, ${totalMB} MB)`;
+        cacheStatus.classList.add("partial");
+        addBootMessage(`[CACHE] Partial cache: ${cachedCount}/4 files`);
+        cacheActions.style.display = "block";
+    } else {
+        cacheStatus.textContent = "First visit - Downloading all assets (~9 MB)";
+        addBootMessage("[CACHE] No cached assets found");
+    }
+    
+    // Fetch and cache function
+    async function fetchAndCache(url, key) {
+        try {
+            const response = await fetch(url);
+            const arrayBuffer = await response.arrayBuffer();
+            await CacheManager.set(url, arrayBuffer, { 
+                filename: key,
+                version: "0.3"
+            });
+            cachedAssets[key] = { data: arrayBuffer, size: arrayBuffer.byteLength };
+            
+            const sizeKB = (arrayBuffer.byteLength / 1024).toFixed(0);
+            addBootMessage(`[CACHE] Saved ${key}: ${key === "hdd" ? (arrayBuffer.byteLength / 1024 / 1024).toFixed(1) + " MB" : sizeKB + " KB"}`);
+            
+            // Update status
+            if (key === "wasm") setFileStatus(statusWasm, `✓ cached (${sizeKB} KB)`, true);
+            if (key === "bios") setFileStatus(statusBios, `✓ cached (${sizeKB} KB)`, true);
+            if (key === "vga") setFileStatus(statusVga, `✓ cached (${sizeKB} KB)`, true);
+            if (key === "hdd") setFileStatus(statusHdd, `✓ cached (${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)} MB)`, true);
+            
+            return arrayBuffer;
+        } catch (e) {
+            console.error(`Failed to cache ${key}:`, e);
+            throw e;
+        }
+    }
+    
+    // Configure V86
+    const v86Config = {
         memory_size: 32 * 1024 * 1024,
         vga_memory_size: 2 * 1024 * 1024,
         screen_container: document.getElementById("screen_container"),
-        bios: {
-            url: "./bios/seabios.bin",
-        },
-        vga_bios: {
-            url: "./bios/vgabios.bin",
-        },
-        hda: {
-            url: "./assets/harddisk.img",
-        },
         autostart: true,
+    };
     
-    });
+    // WASM: Use cache or fetch
+    if (cachedAssets.wasm && !forceRefresh) {
+        v86Config.wasm_path = ASSETS.wasm;
+        updateProgress(5, "v86.wasm (from cache)", cachedAssets.wasm.size, cachedAssets.wasm.size);
+    } else {
+        v86Config.wasm_path = ASSETS.wasm;
+        v86Config.wasm_progress = function(e) {
+            const percent = (e.loaded / e.total) * 10;
+            updateProgress(percent, "v86.wasm", e.loaded, e.total);
+        };
+        // Cache after load
+        fetchAndCache(ASSETS.wasm, "wasm");
+    }
+    
+    // BIOS: Use cache or fetch
+    if (cachedAssets.bios && !forceRefresh) {
+        v86Config.bios = { buffer: cachedAssets.bios.data };
+        updateProgress(10, "seabios.bin (from cache)", cachedAssets.bios.size, cachedAssets.bios.size);
+    } else {
+        v86Config.bios = { url: ASSETS.bios };
+        v86Config.bios_progress = function(e) {
+            const percent = 10 + (e.loaded / e.total) * 5;
+            updateProgress(percent, "seabios.bin", e.loaded, e.total);
+            if (e.loaded === e.total) {
+                fetchAndCache(ASSETS.bios, "bios");
+            }
+        };
+    }
+    
+    // VGA BIOS: Use cache or fetch
+    if (cachedAssets.vga && !forceRefresh) {
+        v86Config.vga_bios = { buffer: cachedAssets.vga.data };
+        updateProgress(15, "vgabios.bin (from cache)", cachedAssets.vga.size, cachedAssets.vga.size);
+    } else {
+        v86Config.vga_bios = { url: ASSETS.vga };
+        v86Config.vga_bios_progress = function(e) {
+            const percent = 15 + (e.loaded / e.total) * 5;
+            updateProgress(percent, "vgabios.bin", e.loaded, e.total);
+            if (e.loaded === e.total) {
+                fetchAndCache(ASSETS.vga, "vga");
+            }
+        };
+    }
+    
+    // HDD: Use cache or fetch (the big one)
+    if (cachedAssets.hdd && !forceRefresh) {
+        v86Config.hda = { buffer: cachedAssets.hdd.data };
+        updateProgress(50, "harddisk.img (from cache)", cachedAssets.hdd.size, cachedAssets.hdd.size);
+        addBootMessage("[CACHE] Using cached harddisk.img");
+    } else {
+        v86Config.hda = { url: ASSETS.hdd, async: true };
+        v86Config.hda_progress = function(e) {
+            const percent = 20 + (e.loaded / e.total) * 80;
+            updateProgress(percent, "harddisk.img", e.loaded, e.total);
+            if (e.loaded === e.total) {
+                fetchAndCache(ASSETS.hdd, "hdd");
+            }
+        };
+    }
+    
+    // Initialize emulator
+    window.emulator = new V86(v86Config);
 
-    // Setup button event listeners
+    // Monitor loading state
+    const checkLoading = setInterval(function() {
+        if (window.emulator.is_running()) {
+            clearInterval(checkLoading);
+            updateProgress(100, "Complete!");
+            addBootMessage("[BOOT] Starting IYKEOS...");
+            
+            setTimeout(function() {
+                loadingOverlay.style.opacity = "0";
+                loadingOverlay.style.transition = "opacity 0.5s";
+                setTimeout(function() {
+                    loadingOverlay.style.display = "none";
+                    enableControls();
+                }, 500);
+            }, 1000);
+        }
+    }, 100);
+
+    // Button event listeners
     document.getElementById("run").onclick = function() {
         if (window.emulator.is_running()) {
             window.emulator.stop();
@@ -123,6 +676,7 @@ window.onload = function()
     document.getElementById("exit").onclick = function() {
         window.emulator.stop();
         window.emulator.destroy();
+        location.reload();
     };
 
     document.getElementById("save_state").onclick = async function() {
@@ -187,7 +741,6 @@ window.onload = function()
     document.getElementById("scale").onchange = function() {
         const scale = parseFloat(this.value);
         window.emulator.screen_set_scale(scale, scale);
-        // Force canvas to stay at top-left after V86 applies scaling
         setTimeout(() => {
             const canvas = document.querySelector("#screen_container canvas");
             if (canvas) {
@@ -198,9 +751,31 @@ window.onload = function()
             }
         }, 0);
     };
+    
+    // Cache management buttons
+    document.getElementById("clear_cache").onclick = async function() {
+        if (confirm("Clear all cached assets? You'll need to download ~9MB again next time.")) {
+            try {
+                await CacheManager.clear();
+                alert("Cache cleared successfully!");
+                location.reload();
+            } catch (e) {
+                alert("Failed to clear cache: " + e.message);
+            }
+        }
+    };
+    
+    document.getElementById("refresh_cache").onclick = async function() {
+        if (confirm("Re-download all assets from server?")) {
+            try {
+                await CacheManager.clear();
+                location.reload();
+            } catch (e) {
+                alert("Failed to refresh: " + e.message);
+            }
+        }
+    };
 };
-
-
 </script>
 
 </body>
