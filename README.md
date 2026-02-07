@@ -4,7 +4,7 @@
 [![Platform](https://img.shields.io/badge/Platform-x86-orange.svg)](https://en.wikipedia.org/wiki/X86)
 [![Language](https://img.shields.io/badge/Language-C%2FAssembly-green.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
 
-A lightweight, educational 32-bit operating system for x86 architecture featuring a graphical user interface, command-line shell, and FAT16 filesystem support.
+A lightweight, educational 32-bit operating system for x86 architecture featuring a microkernel design, boot menu, multiple games, graphical user interface, command-line shell, and FAT16 filesystem support.
 
 ![IYKEOS Logo](https://via.placeholder.com/600x200/003399/FFFFFF?text=IYKEOS)
 
@@ -12,19 +12,29 @@ A lightweight, educational 32-bit operating system for x86 architecture featurin
 
 IYKEOS is a hobby operating system developed for educational purposes. It demonstrates core operating system concepts including process management, memory management, filesystem operations, and device drivers. The OS boots from a hard disk image and provides both a text-mode shell and a graphical windowing environment.
 
-**Version:** 0.2  
+**Version:** 0.3  
 **Author:** Chihurum Fortune  
 **Architecture:** x86 (32-bit Protected Mode)
+**Design:** Microkernel (Kernel + OS split)
 
 ## Features
 
 ### Core System
+- **Microkernel Architecture** - Minimal kernel loads OS.BIN separately
 - **32-bit Protected Mode** kernel with GDT and basic segmentation
 - **FAT16 Filesystem** with full read/write support
 - **PS/2 Keyboard and Mouse** drivers with interrupt handling
 - **VGA Text Mode** (80x25) and basic graphics mode support
 - **Real-Time Clock (RTC)** integration for time/date
 - **Program Loading** - Execute .BIN and .ike files
+- **Virtual Graphics (vgraphics)** - Double-buffered, flicker-free rendering
+
+### Boot Menu
+On startup, choose from 4 options:
+1. **Boot into FORTUNE_OS CLI** - Command-line shell
+2. **Boot into FORTUNE_OS Graphics** - Launch GUI directly
+3. **Check out Kernel Games** - Game launcher
+4. **Quit/Exit** - Shutdown system
 
 ### Command Line Interface
 The shell provides a Unix-like command environment:
@@ -74,14 +84,15 @@ The GUI provides a desktop environment with:
 
 ### Boot Process
 ```
-BIOS → boot.asm (MBR) → stage2.asm (VBR) → kernel_entry_low.asm → kernel_32_low.c → os_32_low.c
+BIOS → boot.asm (MBR) → stage2.asm (VBR) → kernel_entry_low.asm → kernel_32_low.c → OS.BIN → os_32_low.c
 ```
 
 1. **boot.asm** - Master Boot Record (MBR) loads Stage 2
 2. **stage2.asm** - Volume Boot Record (VBR) sets up 32-bit mode
 3. **kernel_entry_low.asm** - Assembly entry point, initializes segments
-4. **kernel_32_low.c** - Early kernel initialization
-5. **os_32_low.c** - Main OS initialization and shell/GUI launcher
+4. **kernel_32_low.c** - Minimal kernel with boot menu (CLI/Graphics/Games/Exit)
+5. **OS.BIN** - Loaded from disk at 0xB00000, contains full OS
+6. **os_32_low.c** - Main OS with shell, GUI, and game launcher
 
 ### Memory Layout
 ```
@@ -101,8 +112,9 @@ The OS exposes APIs through a structure at `0x5F0F0`:
 
 - **Screen Functions:** `screen_clear()`, `screen_print()`, `screen_putc()`
 - **Graphics Functions:** `graphics_init()`, `draw_pixel()`, `put_char()`, `draw_window()`
+- **Virtual Graphics (vgraphics):** `vgraphics_init()`, `vgraphics_clear()`, `vgraphics_put_char()`, `vgraphics_put_string()`, `vgraphics_draw_box()`, `vgraphics_repaint()`
 - **File Functions:** `fat16_file_load()`, `fat16_file_save()`, `fat16_create_file()`, `fat16_delete_file()`
-- **Input Functions:** `keyboard_getchar()`, `keyboard_read()`, `mouse_handler()`
+- **Input Functions:** `keyboard_getchar()` (non-blocking), `keyboard_read()` (blocking), `mouse_handler()`
 - **Utility Functions:** `strlen()`, `strcpy()`, `strcmp()`, `memcpy()`, `memset()`
 
 ## Project Structure

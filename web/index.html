@@ -1,0 +1,207 @@
+<!doctype html>
+<html>
+<head>
+<title>IykeOS Emulator</title>
+<script src="./js/libv86.js"></script>
+<!-- <script src="build/v86_all.js?98e7110c2"></script> -->
+<style>
+  body {
+    background: #0e0e0e;
+    color: white;
+    font-family: Arial;
+    text-align: center;
+  }
+
+  #screen_container {
+    width: 900px;            /* medium size */
+    height: 600px;
+    margin: 10px auto;
+    border: 3px solid #333;
+    background: black;
+    overflow: hidden;
+    position: relative;
+  }
+
+  #screen_container canvas {
+    display: block !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    transform-origin: top left !important;
+    position: relative !important;
+    left: 0 !important;
+    top: 0 !important;
+  }
+
+  #controls {
+    margin: 10px;
+  }
+
+  button {
+    padding: 8px 14px;
+    margin: 4px;
+    cursor: pointer;
+  }
+
+  .fullscreen {
+    width: 100vw !important;
+    height: 100vh !important;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>IykeOS – Browser Emulator</h2>
+
+   <div id="runtime_options" style="display: block">
+        <input type="button" value="Pause" id="run">
+        <input type="button" value="Reset" id="reset">
+        <input type="button" value="Exit" id="exit">
+        <input type="button" value="Save State" id="save_state">
+        <input type="button" value="Load State" id="load_state"> <input type="file" style="display: none" id="load_state_input">
+        <input type="button" value="Disable mouse" id="toggle_mouse">
+        <input type="button" value="Lock mouse" id="lock_mouse">
+        <input type="button" value="Go fullscreen" id="fullscreen">
+        <input type="button" value="Take screenshot" id="take_screenshot">
+        <input type="button" value="Enable theatre mode" id="toggle_theatre">
+
+        <label>
+            Scale:
+            <input type="number" min="0.25" step="0.25" value="1.0" id="scale" style="width: 50px">
+        </label>
+    </div>
+    <pre style="display: none" id="loading"></pre>
+</div>
+
+<div id="screen_container">
+    <div style="white-space: pre; font: 14px monospace; line-height: 14px"></div>
+    <canvas style="display: none"></canvas>
+</div>
+
+<script>
+"use strict";
+
+window.onload = function()
+{
+    window.emulator = new V86({
+        wasm_path: "./assets/v86.wasm",
+        memory_size: 32 * 1024 * 1024,
+        vga_memory_size: 2 * 1024 * 1024,
+        screen_container: document.getElementById("screen_container"),
+        bios: {
+            url: "./bios/seabios.bin",
+        },
+        vga_bios: {
+            url: "./bios/vgabios.bin",
+        },
+        hda: {
+            url: "./assets/harddisk.img",
+        },
+        autostart: true,
+    
+    });
+
+    // Setup button event listeners
+    document.getElementById("run").onclick = function() {
+        if (window.emulator.is_running()) {
+            window.emulator.stop();
+            this.value = "Resume";
+        } else {
+            window.emulator.run();
+            this.value = "Pause";
+        }
+    };
+
+    document.getElementById("reset").onclick = function() {
+        window.emulator.restart();
+    };
+
+    document.getElementById("exit").onclick = function() {
+        window.emulator.stop();
+        window.emulator.destroy();
+    };
+
+    document.getElementById("save_state").onclick = async function() {
+        const state = await window.emulator.save_state();
+        const blob = new Blob([state], { type: "application/octet-stream" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "v86-state.bin";
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    document.getElementById("load_state").onclick = function() {
+        document.getElementById("load_state_input").click();
+    };
+
+    document.getElementById("load_state_input").onchange = async function(e) {
+        const file = e.target.files[0];
+        if (file) {
+            const arrayBuffer = await file.arrayBuffer();
+            await window.emulator.restore_state(arrayBuffer);
+        }
+    };
+
+    let mouseEnabled = true;
+    document.getElementById("toggle_mouse").onclick = function() {
+        mouseEnabled = !mouseEnabled;
+        window.emulator.mouse_set_enabled(mouseEnabled);
+        this.value = mouseEnabled ? "Disable mouse" : "Enable mouse";
+    };
+
+    document.getElementById("lock_mouse").onclick = function() {
+        window.emulator.lock_mouse();
+    };
+
+    document.getElementById("fullscreen").onclick = function() {
+        window.emulator.screen_go_fullscreen();
+    };
+
+    document.getElementById("take_screenshot").onclick = function() {
+        const img = window.emulator.screen_make_screenshot();
+        const url = img.src;
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = "screenshot.png";
+        a.click();
+    };
+
+    let theatreMode = false;
+    document.getElementById("toggle_theatre").onclick = function() {
+        theatreMode = !theatreMode;
+        if (theatreMode) {
+            document.body.style.background = "black";
+            document.getElementById("runtime_options").style.display = "none";
+        } else {
+            document.body.style.background = "#0e0e0e";
+            document.getElementById("runtime_options").style.display = "block";
+        }
+    };
+
+    document.getElementById("scale").onchange = function() {
+        const scale = parseFloat(this.value);
+        window.emulator.screen_set_scale(scale, scale);
+        // Force canvas to stay at top-left after V86 applies scaling
+        setTimeout(() => {
+            const canvas = document.querySelector("#screen_container canvas");
+            if (canvas) {
+                canvas.style.marginLeft = "0px";
+                canvas.style.marginTop = "0px";
+                canvas.style.left = "0px";
+                canvas.style.top = "0px";
+            }
+        }, 0);
+    };
+};
+
+
+</script>
+
+</body>
+</html>

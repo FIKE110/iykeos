@@ -665,7 +665,7 @@ void game_loop() {
             }
             
             os_api->vgraphics_repaint();
-            os_api->busy_delay(800);
+            os_api->busy_delay(200);
         }
         
         if (!playing) break;
@@ -692,6 +692,7 @@ int main(void) {
     os_api = (os_api_t*)OS_API_ADDR;
     
     os_api->disable_cursor();
+
     game_loop();
     os_api->enable_cursor();
     
