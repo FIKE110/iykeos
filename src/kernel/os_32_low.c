@@ -161,21 +161,6 @@ static uint8_t shell_color = 0x0F;
 #define COLOR_YELLOW        0xE
 #define COLOR_WHITE         0xF
 
-typedef struct {
-    void* (*simple_malloc)(size_t);
-    void (*clear_screen)(uint8_t);
-    void (*clear_screen_white)(uint8_t);
-    void (*block)();
-    char (*keyboard_getchar)();
-    char (*keyboard_read)();
-    void (*screen_clear)();
-    void (*screen_putc)(char);
-    void (*screen_print)(char*);
-
-
-} kernel_api_t;
-
-
 void screen_print_shell(const char* str);
 void enable_cursor();
 void screen_clear_shell();
@@ -481,10 +466,8 @@ uint32_t get_random(uint32_t max) {
     return rng_state % max;
 }
 
-#define KERNEL_API_ADDR 0x20000
 #define OS_API_ADDR 0x5F0F0
 
-kernel_api_t* kernel_api;
 os_api_t* os_api;
 
  uint16_t vga_entry(char c, uint8_t color) {
@@ -1250,6 +1233,15 @@ void handle_command(const char* cmd) {
             screen_print_shell("Error: Invalid file type. Only .ike files can be executed.\n");
         }
     }
+     else if(starts_with(cmd,"run ")){
+        const char* filename = cmd + 4;
+        const char* ext = ".BIN";
+        int filename_len = strlen(filename);
+        int ext_len = strlen(ext);
+
+           run(filename);
+
+    }
     else {
         screen_print_shell("Unknown command: ");
         screen_print_shell((char*)cmd);
@@ -1440,7 +1432,6 @@ void debug_putc(char c);
 void graphics_init();
 
 void init_api(){
-    kernel_api=(kernel_api_t*) KERNEL_API_ADDR;
     os_api=(os_api_t*) OS_API_ADDR;
     os_api->print_shell=&screen_print_shell;
     os_api->load_vga=&load_vga;
@@ -1517,26 +1508,30 @@ void start_shell(){
     outb(0x64, 0xA7);
 
     enable_cursor();
-    kernel_api->clear_screen(0x0F);
+    screen_clear_shell();
     shell();
 }
 
-void main(int num){
+#define OS_SELECTION_ADDR 0x90000
+
+void os_main(void){
     save_vga_font();
     init_api();
     __asm__ volatile ("rdtsc" : "=a"(boot_cycles_low), "=d"(boot_cycles_high));
     rng_seed();
     fat16_init();
 
-    if(num==0){
-        start_shell();
+    uint32_t selection = *(volatile uint32_t*)OS_SELECTION_ADDR;
 
+    if(selection == 0){
+        start_shell();
     }
-    else if(num==1){
+    else if(selection == 1){
         run("GUI.BIN");
     }
-    else if(num==2){
+    else if(selection == 2){
         run("GAME.BIN");
     }
-    kernel_api->block();
+
+    while (1) __asm__ __volatile__("hlt");
 }

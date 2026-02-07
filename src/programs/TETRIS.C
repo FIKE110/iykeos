@@ -152,6 +152,12 @@ typedef struct {
     void (*graphics_draw_button)(int x, int y, int w, int h, const char* label, uint8_t color);
     void (*graphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
     void (*graphics_put_pixel)(int x, int y, uint8_t color);
+    void (*vgraphics_init)(void);
+    void (*vgraphics_clear)(uint8_t color);
+    void (*vgraphics_repaint)(void);
+    void (*vgraphics_put_char)(int x, int y, char c, uint8_t color);
+    void (*vgraphics_put_string)(int x, int y, const char* str, uint8_t color);
+    void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
 
 } os_api_t;
 
@@ -480,7 +486,7 @@ void update_score(int lines) {
 
 // Draw a single block
 void draw_block(int x, int y, uint8_t color) {
-    os_api->graphics_put_char(x, y, ' ', VGA_COLOR(COLOR_BLACK, color));
+    os_api->vgraphics_put_char(x, y, ' ', VGA_COLOR(COLOR_BLACK, color));
 }
 
 // Draw the board with locked pieces
@@ -532,7 +538,7 @@ void draw_preview() {
     // Clear preview area
     for (int y = PREVIEW_Y + 1; y < PREVIEW_Y + PREVIEW_HEIGHT - 1; y++) {
         for (int x = PREVIEW_X + 1; x < PREVIEW_X + PREVIEW_WIDTH - 1; x++) {
-            os_api->graphics_put_char(x, y, ' ', VGA_COLOR(COLOR_BLACK, COLOR_BLACK));
+            os_api->vgraphics_put_char(x, y, ' ', VGA_COLOR(COLOR_BLACK, COLOR_BLACK));
         }
     }
     
@@ -556,19 +562,19 @@ void draw_preview() {
 
 // Draw game bounds (box)
 void draw_bounds() {
-    os_api->graphics_draw_box(GAME_X, GAME_Y, GAME_WIDTH, GAME_HEIGHT, 
+    os_api->vgraphics_draw_box(GAME_X, GAME_Y, GAME_WIDTH, GAME_HEIGHT, 
                                VGA_COLOR(COLOR_CYAN, COLOR_BLACK));
     
-    os_api->graphics_put_string(GAME_X + (GAME_WIDTH - 10) / 2, GAME_Y, 
+    os_api->vgraphics_put_string(GAME_X + (GAME_WIDTH - 10) / 2, GAME_Y, 
                                  " TETRIS ", VGA_COLOR(COLOR_WHITE, COLOR_BLUE));
 }
 
 // Draw preview box (NEXT piece)
 void draw_preview_box() {
-    os_api->graphics_draw_box(PREVIEW_X, PREVIEW_Y, PREVIEW_WIDTH, PREVIEW_HEIGHT, 
+    os_api->vgraphics_draw_box(PREVIEW_X, PREVIEW_Y, PREVIEW_WIDTH, PREVIEW_HEIGHT, 
                                VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
     
-    os_api->graphics_put_string(PREVIEW_X + 3, PREVIEW_Y, 
+    os_api->vgraphics_put_string(PREVIEW_X + 3, PREVIEW_Y, 
                                  " NEXT ", VGA_COLOR(COLOR_WHITE, COLOR_DGRAY));
 }
 
@@ -576,22 +582,22 @@ void draw_preview_box() {
 void draw_score() {
     char score_str[20];
     
-    os_api->graphics_put_string(2, 23, "Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
+    os_api->vgraphics_put_string(2, 23, "Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
     os_api->int_to_str(game.score, score_str);
-    os_api->graphics_put_string(9, 23, score_str, VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
+    os_api->vgraphics_put_string(9, 23, score_str, VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
     
-    os_api->graphics_put_string(32, 23, "Hi: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
+    os_api->vgraphics_put_string(32, 23, "Hi: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
     os_api->int_to_str(high_score, score_str);
-    os_api->graphics_put_string(36, 23, score_str, VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
+    os_api->vgraphics_put_string(36, 23, score_str, VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
     
-    os_api->graphics_put_string(50, 23, "Lines: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
+    os_api->vgraphics_put_string(50, 23, "Lines: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
     os_api->int_to_str(game.lines_cleared, score_str);
-    os_api->graphics_put_string(57, 23, score_str, VGA_COLOR(COLOR_LGREEN, COLOR_BLACK));
+    os_api->vgraphics_put_string(57, 23, score_str, VGA_COLOR(COLOR_LGREEN, COLOR_BLACK));
 }
 
 // Draw controls
 void draw_controls() {
-    os_api->graphics_put_string(2, 24, "Arrows: Move | Up: Rotate | Down: Soft | Space: Hard | Q: Quit", 
+    os_api->vgraphics_put_string(2, 24, "Arrows: Move | Up: Rotate | Down: Soft | Space: Hard | Q: Quit", 
                                  VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
 }
 
@@ -601,29 +607,29 @@ void draw_game_over() {
     int box_x = BOARD_OFFSET_X + 8;
     int box_y = BOARD_OFFSET_Y + 6;
 
-    os_api->graphics_draw_box(box_x, box_y, 24, 8, VGA_COLOR(COLOR_RED, COLOR_BLACK));
+    os_api->vgraphics_draw_box(box_x, box_y, 24, 8, VGA_COLOR(COLOR_RED, COLOR_BLACK));
 
     // Title
-    os_api->graphics_put_string(box_x + 6, box_y + 1, "GAME OVER",
+    os_api->vgraphics_put_string(box_x + 6, box_y + 1, "GAME OVER",
                                  VGA_COLOR(COLOR_LRED, COLOR_BLACK));
 
     // Final score
     char score_str[20];
     os_api->int_to_str(game.score, score_str);
-    os_api->graphics_put_string(box_x + 2, box_y + 3, "Score: ",
+    os_api->vgraphics_put_string(box_x + 2, box_y + 3, "Score: ",
                                  VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
-    os_api->graphics_put_string(box_x + 9, box_y + 3, score_str,
+    os_api->vgraphics_put_string(box_x + 9, box_y + 3, score_str,
                                  VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
 
     // High score
     os_api->int_to_str(high_score, score_str);
-    os_api->graphics_put_string(box_x + 2, box_y + 5, "High: ",
+    os_api->vgraphics_put_string(box_x + 2, box_y + 5, "High: ",
                                  VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
-    os_api->graphics_put_string(box_x + 8, box_y + 5, score_str,
+    os_api->vgraphics_put_string(box_x + 8, box_y + 5, score_str,
                                  VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
 
     // Instructions
-    os_api->graphics_put_string(box_x + 2, box_y + 6, "R: Restart  Q: Quit",
+    os_api->vgraphics_put_string(box_x + 2, box_y + 6, "R: Restart  Q: Quit",
                                  VGA_COLOR(COLOR_LGRAY, COLOR_BLACK));
 }
 
@@ -678,8 +684,8 @@ void game_loop() {
     spawn_piece();
     
     // Initialize graphics
-    os_api->graphics_init();
-    os_api->graphics_clear_screen_g(COLOR_BLACK);
+    os_api->vgraphics_init();
+    os_api->vgraphics_clear(COLOR_BLACK);
     
     // Draw static elements
     draw_bounds();
@@ -744,6 +750,7 @@ void game_loop() {
         draw_preview();
         draw_score();
 
+        os_api->vgraphics_repaint();
         // Frame delay
         for (volatile int d = 0; d < 10000; d++);
 
@@ -758,7 +765,7 @@ void game_loop() {
 
             // Wait for R (restart) or Q (quit)
             while (1) {
-                char c = os_api->keyboard_read();
+                char c = os_api->keyboard_getchar();
                 if (c == 'q' || c == 'Q' || c == 0x1B) {
                     playing = false;
                     break;

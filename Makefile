@@ -20,6 +20,7 @@ NASM_BIN  := -f bin
 
 LDFLAGS  := -m elf_i386 -T linker.ld
 LDFLAGS2 := -m elf_i386 -T linker2.ld
+LDFLAGS3 := -m elf_i386 -T linker_os.ld
 
 LIB_SRCS := $(LIB_DIR)/memory_os.c $(LIB_DIR)/disk.c $(LIB_DIR)/print.c \
             $(LIB_DIR)/file.c $(LIB_DIR)/strings.c $(LIB_DIR)/keyboard.c \
@@ -71,13 +72,27 @@ $(BUILD_DIR)/os_32_low.o: $(KERNEL_DIR)/os_32_low.c
 	@echo "  CC      $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
-build-kernel: compile-lib $(BUILD_DIR)/kernel_entry_low.o $(BUILD_DIR)/kernel_32_low.o $(BUILD_DIR)/os_32_low.o
+$(BUILD_DIR)/os_entry.o: $(KERNEL_DIR)/os_entry.asm | dirs
+	@echo "  NASM    $<"
+	@$(NASM) $(NASMFLAGS) $< -o $@
+
+build-kernel: compile-lib $(BUILD_DIR)/kernel_entry_low.o $(BUILD_DIR)/kernel_32_low.o
 	@echo "  LD      kernel_low.elf"
 	@$(LD) $(LDFLAGS) $(BUILD_DIR)/kernel_entry_low.o \
-		$(BUILD_DIR)/kernel_32_low.o $(BUILD_DIR)/os_32_low.o \
-		$(LIB_OBJS) -o $(KERNEL_ELF)
+		$(BUILD_DIR)/kernel_32_low.o \
+		-o $(KERNEL_ELF)
 	@echo "  OBJCOPY kernel_low.bin"
 	@$(OBJCOPY) -O binary $(KERNEL_ELF) $(KERNEL_BIN)
+
+$(BUILD_DIR)/os_low.elf: $(BUILD_DIR)/os_entry.o $(BUILD_DIR)/os_32_low.o compile-lib
+	@echo "  LD      os_low.elf"
+	@$(LD) $(LDFLAGS3) $(BUILD_DIR)/os_entry.o \
+		$(BUILD_DIR)/os_32_low.o \
+		$(LIB_OBJS) -o $@
+
+$(BUILD_DIR)/os.bin: $(BUILD_DIR)/os_low.elf
+	@echo "  OBJCOPY os.bin"
+	@$(OBJCOPY) -O binary $< $@
 
 $(BUILD_DIR)/code_entry.o: $(PROGS_DIR)/code_entry.asm | dirs
 	@echo "  NASM    $<"
@@ -119,6 +134,18 @@ $(BUILD_DIR)/pong.o: $(PROGS_DIR)/PONG.C
 	@echo "  CC      $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
+$(BUILD_DIR)/breakout.o: $(PROGS_DIR)/BREAKOUT.c
+	@echo "  CC      $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/snake2.o: $(PROGS_DIR)/SNAKE2.C
+	@echo "  CC      $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/spaceinvaders.o: $(PROGS_DIR)/SPACEINVADERS.c
+	@echo "  CC      $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
 $(BUILD_DIR)/hello.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/hello_world_low.o
 	@echo "  LD      hello.elf"
 	@$(LD) $(LDFLAGS2) $^ -o $@
@@ -155,12 +182,27 @@ $(BUILD_DIR)/pong.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/pong.o
 	@echo "  LD      pong.elf"
 	@$(LD) $(LDFLAGS2) $^ -o $@
 
+$(BUILD_DIR)/breakout.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/breakout.o
+	@echo "  LD      breakout.elf"
+	@$(LD) $(LDFLAGS2) $^ -o $@
+
+$(BUILD_DIR)/snake2.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/snake2.o
+	@echo "  LD      snake2.elf"
+	@$(LD) $(LDFLAGS2) $^ -o $@
+
+$(BUILD_DIR)/spaceinvaders.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/spaceinvaders.o
+	@echo "  LD      spaceinvaders.elf"
+	@$(LD) $(LDFLAGS2) $^ -o $@
+
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
 	@echo "  OBJCOPY $(notdir $@)"
 	@$(OBJCOPY) -O binary $< $@
 
-build-programs: build-kernel $(BUILD_DIR)/code_entry.o
-	@$(MAKE) $(BUILD_DIR)/hello.bin $(BUILD_DIR)/editor.bin $(BUILD_DIR)/basic.bin $(BUILD_DIR)/gui.bin $(BUILD_DIR)/gui2.bin $(BUILD_DIR)/game.bin $(BUILD_DIR)/snake.bin $(BUILD_DIR)/tetris.bin $(BUILD_DIR)/pong.bin
+build-os: build-kernel $(BUILD_DIR)/os.bin
+	@echo "OS binary build complete"
+
+build-programs: build-os $(BUILD_DIR)/code_entry.o
+	@$(MAKE) $(BUILD_DIR)/hello.bin $(BUILD_DIR)/editor.bin $(BUILD_DIR)/basic.bin $(BUILD_DIR)/gui.bin $(BUILD_DIR)/gui2.bin $(BUILD_DIR)/game.bin $(BUILD_DIR)/snake.bin $(BUILD_DIR)/tetris.bin $(BUILD_DIR)/pong.bin $(BUILD_DIR)/breakout.bin $(BUILD_DIR)/snake2.bin $(BUILD_DIR)/spaceinvaders.bin
 
 test-os-build: build-programs $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN)
 	@bash ./build-hdd.sh
@@ -183,6 +225,7 @@ help:
 	@echo "  all              - Build and run OS (default)"
 	@echo "  compile-lib      - Compile OS libraries"
 	@echo "  build-kernel     - Build kernel"
+	@echo "  build-os         - Build OS binary"
 	@echo "  build-programs   - Build user programs"
 	@echo "  test-os-build    - Build full OS and run in QEMU"
 	@echo "  flash            - Write harddisk.img to /dev/sdb (flash drive)"

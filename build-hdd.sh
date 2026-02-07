@@ -54,6 +54,16 @@ sudo dd if="$VBR_BIN" of="$PARTITION" bs=1 skip=62 seek=62 conv=notrunc
 echo "Writing kernel ($KERNEL_BIN_SRC) to $PARTITION..."
 sudo dd if="$KERNEL_BIN_SRC" of="$PARTITION" bs=512 seek=1 conv=notrunc
 
+echo "Detaching loop device temporarily to write OS binary at fixed disk location..."
+sudo losetup -d "$LOOP_DEV"
+
+echo "Writing OS binary to disk at fixed location (LBA 512 of disk, in data region)..."
+sudo dd if="./build/os.bin" of="$IMG_FILE" bs=512 seek=512 conv=notrunc
+
+echo "Re-attaching loop device..."
+LOOP_DEV=$(sudo losetup -fP --show "$IMG_FILE")
+PARTITION="${LOOP_DEV}p1"
+
 echo "Creating temporary mount point at $MNT_POINT"
 sudo mkdir -p "$MNT_POINT"
 sudo mount "$PARTITION" "$MNT_POINT"
@@ -79,6 +89,9 @@ sudo cp ./build/game.bin "$MNT_POINT/GAME.BIN"
 sudo cp ./build/snake.bin "$MNT_POINT/SNAKE.bin"
 sudo cp ./build/tetris.bin "$MNT_POINT/TETRIS.BIN"
 sudo cp ./build/pong.bin "$MNT_POINT/PONG.BIN"
+sudo cp ./build/breakout.bin "$MNT_POINT/BREAKOUT.BIN"
+sudo cp ./build/snake2.bin "$MNT_POINT/SNAKE2.BIN"
+sudo cp ./build/spaceinvaders.bin "$MNT_POINT/SPACEINV.BIN"
 
 if [ -d "./assets/txt" ]; then
     for file in ./assets/txt/*.txt; do

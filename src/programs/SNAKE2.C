@@ -4,17 +4,14 @@
 
 #define OS_API_ADDR 0x5F0F0
 
-// Screen dimensions
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 25
 
-// Game bounds
 #define GAME_X 2
 #define GAME_Y 2
 #define GAME_WIDTH 76
 #define GAME_HEIGHT 21
 
-// Colors
 #define COLOR_BLACK      0x0
 #define COLOR_BLUE       0x1
 #define COLOR_GREEN      0x2
@@ -34,7 +31,8 @@
 
 #define VGA_COLOR(fg, bg) ((bg << 4) | (fg))
 
-// FAT16 directory entry (needed for OS API)
+#define GAME_ID 4
+
 typedef struct {
     char name[8];
     char ext[3];
@@ -46,7 +44,6 @@ typedef struct {
     uint32_t size;
 } __attribute__((packed)) fat16_dir_entry;
 
-// Direction enum
 typedef enum {
     DIR_UP,
     DIR_DOWN,
@@ -54,7 +51,6 @@ typedef enum {
     DIR_RIGHT
 } Direction;
 
-// Snake entity
 #define SNAKE_MAX_LENGTH 100
 
 typedef struct {
@@ -63,27 +59,24 @@ typedef struct {
 } Point;
 
 typedef struct {
-    Point body[SNAKE_MAX_LENGTH];  // Snake body segments
-    int length;                     // Current length
-    Direction facing;              // Which direction snake is facing
-    uint32_t head_x;                    // Head X coordinate
-    uint32_t head_y;                    // Head Y coordinate
+    Point body[SNAKE_MAX_LENGTH];
+    int length;
+    Direction facing;
+    uint32_t head_x;
+    uint32_t head_y;
 } Snake;
 
-// Snake colors - bright and shiny
-#define SNAKE_HEAD_COLOR VGA_COLOR(COLOR_YELLOW, COLOR_BLACK)    // Bright yellow head
-#define SNAKE_BODY_COLOR VGA_COLOR(COLOR_LGREEN, COLOR_BLACK)    // Light green body
+#define SNAKE_HEAD_COLOR VGA_COLOR(COLOR_YELLOW, COLOR_BLACK)
+#define SNAKE_BODY_COLOR VGA_COLOR(COLOR_LGREEN, COLOR_BLACK)
 
-// Food (Apple)
 typedef struct {
     int x;
     int y;
     bool active;
 } Food;
 
-#define FOOD_COLOR VGA_COLOR(COLOR_RED, COLOR_BLACK)    // Bright red apple
+#define FOOD_COLOR VGA_COLOR(COLOR_RED, COLOR_BLACK)
 
-// OS API structure
 typedef struct {
     void (*print_shell)(const char*);
     void (*print_shellc)(char);
@@ -153,23 +146,101 @@ typedef struct {
     void (*vgraphics_put_char)(int x, int y, char c, uint8_t color);
     void (*vgraphics_put_string)(int x, int y, const char* str, uint8_t color);
     void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
-
 } os_api_t;
 
 os_api_t* os_api;
+Snake snake;
+Food food;
+int score = 0;
+int high_score = 0;
 
-// Initialize API
 void init_api() {
     os_api = (os_api_t*)OS_API_ADDR;
 }
 
-// Global snake and food
-Snake snake;
-Food food;
-int score = 0;
-int high_score = 0;  // Cache high score to avoid reloading every frame
+int parse_number(const char* str, int* pos, char delimiter) {
+    int num = 0;
+    while (str[*pos] >= '0' && str[*pos] <= '9') {
+        num = num * 10 + (str[*pos] - '0');
+        (*pos)++;
+    }
+    if (str[*pos] == delimiter) {
+        (*pos)++;
+    }
+    return num;
+}
 
-// Check if position collides with snake body
+void load_all_high_scores(int* scores, int num_games) {
+    uint8_t buffer[64];
+    
+    if (!os_api->fat16_file_exists("GAMES.TXT")) {
+        const char* default_scores = "|0|0|0|0|0|0|";
+        os_api->fat16_create_file("GAMES.TXT", 0);
+        os_api->fat16_file_save("GAMES.TXT", (uint8_t*)default_scores, 14);
+        
+        for (int i = 0; i < num_games; i++) {
+            scores[i] = 0;
+        }
+        return;
+    }
+    
+    int size = os_api->fat16_file_load("GAMES.TXT", buffer);
+    if (size <= 0) {
+        for (int i = 0; i < num_games; i++) {
+            scores[i] = 0;
+        }
+        return;
+    }
+    
+    buffer[size] = '\0';
+    int pos = 0;
+    for (int i = 0; i < num_games && pos < size; i++) {
+        scores[i] = parse_number((char*)buffer, &pos, '|');
+    }
+}
+
+void save_all_high_scores(int* scores, int num_games) {
+    char buffer[64];
+    int pos = 0;
+    
+    for (int i = 0; i < num_games; i++) {
+        buffer[pos++] = '|';
+        
+        char num_str[12];
+        os_api->int_to_str(scores[i], num_str);
+        
+        int j = 0;
+        while (num_str[j]) {
+            buffer[pos++] = num_str[j++];
+        }
+    }
+    buffer[pos++] = '|';
+    buffer[pos] = '\0';
+    
+    os_api->fat16_create_file("GAMES.TXT", 0);
+    os_api->fat16_file_save("GAMES.TXT", (uint8_t*)buffer, pos);
+}
+
+void save_high_score() {
+    int scores[6];
+    
+    load_all_high_scores(scores, 6);
+    
+    if (score > scores[GAME_ID]) {
+        scores[GAME_ID] = score;
+        high_score = score;
+        save_all_high_scores(scores, 6);
+    }
+}
+
+int load_high_score() {
+    int scores[6];
+    
+    load_all_high_scores(scores, 6);
+    
+    return scores[GAME_ID];
+}
+
 bool collide_with_snake(int x, int y) {
     for (int i = 0; i < snake.length; i++) {
         if (snake.body[i].x == x && snake.body[i].y == y) {
@@ -179,28 +250,22 @@ bool collide_with_snake(int x, int y) {
     return false;
 }
 
-// Place food at random position
 void place_food() {
     bool valid = false;
     while (!valid) {
-        // Random position inside game bounds
         food.x = GAME_X + 1 + (os_api->get_random(GAME_WIDTH - 2));
         food.y = GAME_Y + 1 + (os_api->get_random(GAME_HEIGHT - 2));
-        
-        // Check not on snake
         valid = !collide_with_snake(food.x, food.y);
     }
     food.active = true;
 }
 
-// Draw the food
 void draw_food() {
     if (food.active) {
         os_api->vgraphics_put_char(food.x, food.y, '*', FOOD_COLOR);
     }
 }
 
-// Check if snake eats food
 bool check_eat_food() {
     if (food.active && snake.head_x == food.x && snake.head_y == food.y) {
         return true;
@@ -208,14 +273,12 @@ bool check_eat_food() {
     return false;
 }
 
-// Grow snake
 void grow_snake() {
     if (snake.length < SNAKE_MAX_LENGTH) {
         snake.length++;
     }
 }
 
-// Check if snake collides with itself
 bool check_self_collision() {
     for (int i = 1; i < snake.length; i++) {
         if (snake.head_x == snake.body[i].x && snake.head_y == snake.body[i].y) {
@@ -225,158 +288,21 @@ bool check_self_collision() {
     return false;
 }
 
-// Parse number from string until delimiter
-int parse_number(const char* str, int* pos, char delimiter) {
-    int num = 0;
-    while (str[*pos] >= '0' && str[*pos] <= '9') {
-        num = num * 10 + (str[*pos] - '0');
-        (*pos)++;
+bool check_wall_collision() {
+    if (snake.head_x <= GAME_X || snake.head_x >= GAME_X + GAME_WIDTH - 1 ||
+        snake.head_y <= GAME_Y || snake.head_y >= GAME_Y + GAME_HEIGHT - 1) {
+        return true;
     }
-    // Skip delimiter
-    if (str[*pos] == delimiter) {
-        (*pos)++;
-    }
-    return num;
+    return false;
 }
 
-// Load high scores from GAMES.TXT
-// Format: game1|game2|game3|game4|game5|game6|
-// Snake uses position 0 (first game)
-void load_all_high_scores(int* scores, int num_games) {
-    uint8_t buffer[64];
-    
-    // Check if file exists
-    if (!os_api->fat16_file_exists("GAMES.TXT")) {
-        // Create file with default values: |0|0|0|0|0|0|
-        const char* default_scores = "|0|0|0|0|0|0|";
-        os_api->fat16_create_file("GAMES.TXT", 0);
-        os_api->fat16_file_save("GAMES.TXT", (uint8_t*)default_scores, 14);
-        
-        // Initialize all scores to 0
-        for (int i = 0; i < num_games; i++) {
-            scores[i] = 0;
-        }
-        return;
-    }
-    
-    // Load existing file
-    int size = os_api->fat16_file_load("GAMES.TXT", buffer);
-    if (size <= 0) {
-        // File exists but couldn't load, use zeros
-        for (int i = 0; i < num_games; i++) {
-            scores[i] = 0;
-        }
-        return;
-    }
-    
-    // Parse scores
-    buffer[size] = '\0';
-    int pos = 0;
-    for (int i = 0; i < num_games && pos < size; i++) {
-        scores[i] = parse_number((char*)buffer, &pos, '|');
-    }
-}
-
-// Save high scores to GAMES.TXT
-void save_all_high_scores(int* scores, int num_games) {
-    char buffer[64];
-    int pos = 0;
-    
-    // Build string: |score1|score2|score3|score4|score5|score6|
-    for (int i = 0; i < num_games; i++) {
-        buffer[pos++] = '|';
-        
-        // Convert number to string
-        char num_str[12];
-        os_api->int_to_str(scores[i], num_str);
-        
-        // Copy number
-        int j = 0;
-        while (num_str[j]) {
-            buffer[pos++] = num_str[j++];
-        }
-    }
-    buffer[pos++] = '|';
-    buffer[pos] = '\0';
-    
-    // Save file
-    os_api->fat16_create_file("GAMES.TXT", 0);
-    os_api->fat16_file_save("GAMES.TXT", (uint8_t*)buffer, pos);
-}
-
-// Save high score for Snake (game 0)
-void save_high_score() {
-    int scores[6];  // 6 games total
-    
-    // Load all scores
-    load_all_high_scores(scores, 6);
-    
-    // Update Snake score (position 0) if current score is higher
-    if (score > scores[0]) {
-        scores[0] = score;
-        high_score = score;  // Update cached high score
-        save_all_high_scores(scores, 6);
-    }
-}
-
-// Load high score for Snake (game 0)
-int load_high_score() {
-    int scores[6];  // 6 games total
-    
-    // Load all scores
-    load_all_high_scores(scores, 6);
-    
-    // Return Snake score (position 0)
-    return scores[0];
-}
-
-// Initialize snake at center of game area
-void init_snake() {
-    // Start at center of game area
-    snake.head_x = GAME_X + (GAME_WIDTH / 2);
-    snake.head_y = GAME_Y + (GAME_HEIGHT / 2);
-    
-    // Initial length of 3
-    snake.length = 3;
-    
-    // Start facing right
-    snake.facing = DIR_RIGHT;
-    
-    // Initialize body segments behind head
-    for (int i = 0; i < snake.length; i++) {
-        snake.body[i].x = snake.head_x - i;
-        snake.body[i].y = snake.head_y;
-    }
-    
-    // Place initial food
-    place_food();
-    
-    // Reset score
-    score = 0;
-}
-
-// Draw the snake
-void draw_snake() {
-    // Draw body segments first (so head appears on top)
-    for (int i = 1; i < snake.length; i++) {
-        os_api->vgraphics_put_char(snake.body[i].x, snake.body[i].y, 'o', SNAKE_BODY_COLOR);
-    }
-    
-    // Draw head with bright color
-    os_api->vgraphics_put_char(snake.head_x, snake.head_y, 'o', SNAKE_HEAD_COLOR);
-}
-
-// Update snake position - returns false if game over
 bool update_snake() {
-    // Check if eating food before moving
     bool eating = check_eat_food();
     
-    // Move body segments (from tail to head)
     for (int i = snake.length - 1; i > 0; i--) {
         snake.body[i] = snake.body[i - 1];
     }
     
-    // Move head based on direction
     switch (snake.facing) {
         case DIR_UP:
             snake.head_y--;
@@ -392,77 +318,65 @@ bool update_snake() {
             break;
     }
     
-    // Update body[0] to be the new head position
     snake.body[0].x = snake.head_x;
     snake.body[0].y = snake.head_y;
     
-    // Wrap around game boundaries
-    if (snake.head_x < GAME_X + 1) snake.head_x = GAME_X + GAME_WIDTH - 2;
-    if (snake.head_x >= GAME_X + GAME_WIDTH - 1) snake.head_x = GAME_X + 1;
-    if (snake.head_y < GAME_Y + 1) snake.head_y = GAME_Y + GAME_HEIGHT - 2;
-    if (snake.head_y >= GAME_Y + GAME_HEIGHT - 1) snake.head_y = GAME_Y + 1;
-    
-    // Update body[0] after wrapping
-    snake.body[0].x = snake.head_x;
-    snake.body[0].y = snake.head_y;
-    
-    // Check for self collision (game over)
-    if (check_self_collision()) {
-        return false; // Game over
+    // Check wall collision - GAME OVER!
+    if (check_wall_collision()) {
+        return false;
     }
     
-    // Handle eating food
+    // Check self collision
+    if (check_self_collision()) {
+        return false;
+    }
+    
     if (eating) {
         grow_snake();
         score += 10;
         place_food();
+        os_api->beep(1000, 50);
     }
     
-    return true; // Game continues
+    return true;
 }
 
-// Handle keyboard input for direction
 void handle_input(char c) {
     switch (c) {
         case 'w':
         case 'W':
-        case 0x11: // KEY_UP
+        case 0x11:
             if (snake.facing != DIR_DOWN) snake.facing = DIR_UP;
             break;
         case 's':
         case 'S':
-        case 0x12: // KEY_DOWN
+        case 0x12:
             if (snake.facing != DIR_UP) snake.facing = DIR_DOWN;
             break;
         case 'a':
         case 'A':
-        case 0x13: // KEY_LEFT
+        case 0x13:
             if (snake.facing != DIR_RIGHT) snake.facing = DIR_LEFT;
             break;
         case 'd':
         case 'D':
-        case 0x14: // KEY_RIGHT
+        case 0x14:
             if (snake.facing != DIR_LEFT) snake.facing = DIR_RIGHT;
             break;
     }
 }
 
-// Draw game bounds (box)
 void draw_bounds() {
-    // Draw box outline
     os_api->vgraphics_draw_box(GAME_X, GAME_Y, GAME_WIDTH, GAME_HEIGHT, 
-                               VGA_COLOR(COLOR_LGREEN, COLOR_BLACK));
+                               VGA_COLOR(COLOR_LRED, COLOR_BLACK));
     
-    // Draw title
-    os_api->vgraphics_put_string(GAME_X + (GAME_WIDTH - 10) / 2, GAME_Y, 
-                                 " SNAKE ", VGA_COLOR(COLOR_WHITE, COLOR_BLUE));
+    os_api->vgraphics_put_string(GAME_X + (GAME_WIDTH - 12) / 2, GAME_Y, 
+                                 " SNAKE II ", VGA_COLOR(COLOR_WHITE, COLOR_BLUE));
     
-    // Draw instructions
     os_api->vgraphics_put_string(2, 24, "WASD/Arrows: Move | Q: Quit", 
                                  VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
 }
 
-// Clear game area inside bounds
 void clear_game_area() {
     for (int y = GAME_Y + 1; y < GAME_Y + GAME_HEIGHT - 1; y++) {
         for (int x = GAME_X + 1; x < GAME_X + GAME_WIDTH - 1; x++) {
@@ -471,22 +385,25 @@ void clear_game_area() {
     }
 }
 
-// Draw score and high score
+void draw_snake() {
+    os_api->vgraphics_put_char(snake.head_x, snake.head_y, '@', SNAKE_HEAD_COLOR);
+    for (int i = 1; i < snake.length; i++) {
+        os_api->vgraphics_put_char(snake.body[i].x, snake.body[i].y, 'o', SNAKE_BODY_COLOR);
+    }
+}
+
 void draw_score() {
     char score_str[20];
     os_api->int_to_str(score, score_str);
     os_api->vgraphics_put_string(2, 23, "Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
     os_api->vgraphics_put_string(9, 23, score_str, VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
     
-    // Show high score (use cached value)
     os_api->int_to_str(high_score, score_str);
     os_api->vgraphics_put_string(60, 23, "Hi: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
     os_api->vgraphics_put_string(64, 23, score_str, VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
 }
 
-// Draw game over screen
 void draw_game_over() {
-    // Draw box in center
     int box_x = 25;
     int box_y = 8;
     int box_w = 30;
@@ -494,71 +411,64 @@ void draw_game_over() {
     
     os_api->vgraphics_draw_box(box_x, box_y, box_w, box_h, VGA_COLOR(COLOR_RED, COLOR_BLACK));
     
-    // Title
     os_api->vgraphics_put_string(box_x + 8, box_y + 1, "GAME OVER!", VGA_COLOR(COLOR_LRED, COLOR_BLACK));
     
-    // Final score
     char score_str[20];
     os_api->int_to_str(score, score_str);
     os_api->vgraphics_put_string(box_x + 3, box_y + 3, "Final Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
     os_api->vgraphics_put_string(box_x + 16, box_y + 3, score_str, VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
     
-    // High score (use cached value loaded at game start)
     os_api->int_to_str(high_score, score_str);
     os_api->vgraphics_put_string(box_x + 3, box_y + 5, "High Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
     os_api->vgraphics_put_string(box_x + 15, box_y + 5, score_str, VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
     
-    // New high score message
     if (score > high_score && score > 0) {
         os_api->vgraphics_put_string(box_x + 6, box_y + 6, "NEW HIGH SCORE!", VGA_COLOR(COLOR_LGREEN, COLOR_BLACK));
     }
     
-    // Instructions
     os_api->vgraphics_put_string(box_x + 2, box_y + 8, "R: Restart  Q: Quit", VGA_COLOR(COLOR_LGRAY, COLOR_BLACK));
 }
 
-// Main game loop
+void init_snake() {
+    snake.head_x = GAME_X + (GAME_WIDTH / 2);
+    snake.head_y = GAME_Y + (GAME_HEIGHT / 2);
+    
+    snake.length = 3;
+    snake.facing = DIR_RIGHT;
+    
+    snake.body[0].x = snake.head_x;
+    snake.body[0].y = snake.head_y;
+    snake.body[1].x = snake.head_x - 1;
+    snake.body[1].y = snake.head_y;
+    snake.body[2].x = snake.head_x - 2;
+    snake.body[2].y = snake.head_y;
+}
+
 void game_loop() {
     bool playing = true;
-    bool game_over = false;
     
-    // Load high score at game start
     high_score = load_high_score();
     
     while (playing) {
-        // Initialize graphics
         os_api->vgraphics_init();
-        
-        // Clear screen
         os_api->vgraphics_clear(COLOR_BLACK);
         
-        // Draw game bounds
         draw_bounds();
         
-        // Initialize snake
         init_snake();
+        score = 0;
+        place_food();
         
-        // Game speed - starts slower (higher number), gets faster (lower number) as snake grows
-        // Base speed starts at 35 (slower), progressively gets faster
         int base_speed = 35;
+        bool game_over = false;
         
-        game_over = false;
-        
-        // Main game loop
         while (!game_over) {
-            // Clear game area
             clear_game_area();
             
-            // Draw food
             draw_food();
-            
-            // Draw snake
             draw_snake();
-            
-            // Draw score
             draw_score();
             
-            // Handle input (non-blocking)
             char c = os_api->keyboard_getchar();
             if (c == 'q' || c == 'Q' || c == 0x1B) {
                 playing = false;
@@ -566,53 +476,46 @@ void game_loop() {
             }
             handle_input(c);
             
-            // Update snake position - returns false if game over
             if (!update_snake()) {
                 game_over = true;
-                save_high_score();  // Save high score when game over
+                break;
             }
             
-            // Calculate speed based on snake length - gets faster as you progress
-            // Start at base_speed (35), reduce by 1 for every 3 segments eaten
-            int current_speed = base_speed - ((snake.length - 3) / 3);
-            
-            // Minimum speed cap (don't get too fast)
-            if (current_speed < 8) current_speed = 8;
+            int current_speed = base_speed - (snake.length / 5);
+            if (current_speed < 15) current_speed = 15;
             
             os_api->vgraphics_repaint();
-            for (volatile int d = 0; d < current_speed * 100000; d++);
+            for (volatile int i = 0; i < current_speed * 100000; i++);
         }
         
-        // Game over - show screen and wait for input
-        if (game_over) {
-            draw_game_over();
-            
-            // Wait for R (restart) or Q (quit)
-            while (1) {
-                char c = os_api->keyboard_getchar();
-                if (c == 'q' || c == 'Q' || c == 0x1B) {
+        if (!playing) break;
+        
+        save_high_score();
+        draw_game_over();
+        
+        bool waiting = true;
+        while (waiting) {
+            char key = os_api->keyboard_getchar();
+            if (key != 0) {
+                if (key == 'r' || key == 'R') {
+                    waiting = false;
+                } else if (key == 'q' || key == 'Q' || key == 0x1B) {
                     playing = false;
-                    break;
-                }
-                if (c == 'r' || c == 'R') {
-                    break;  // Restart game
+                    waiting = false;
                 }
             }
         }
     }
 }
 
-// Entry point
-void main(void) {
+int main(void) {
     init_api();
     
-    // Clear shell screen first
-    os_api->screen_clear_shell();
-
-    
-    // Run game
+    os_api->disable_cursor();
     game_loop();
+    os_api->enable_cursor();
     
-    // Clear shell screen on exit
-    os_api->screen_clear_shell();
+    os_api->vgraphics_clear(COLOR_BLACK);
+    
+    return 0;
 }

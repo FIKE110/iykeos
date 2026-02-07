@@ -277,9 +277,14 @@ int main_game_menu() {
                     os_api->run("PONG.BIN");
                     break;
                 case GAME_BREAKOUT:
+                    os_api->run("BREAKOUT.BIN");
+                    break;
                 case GAME_SNAKE2:
+                    os_api->run("SNAKE2.BIN");
+                    break;
                 case GAME_INVADERS:
-                    show_coming_soon(result);
+                    os_api->run("SPACEINV.BIN");
+                    // show_coming_soon(result);
                     break;
             }
             
