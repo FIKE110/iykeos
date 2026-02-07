@@ -145,6 +145,13 @@ uint8_t get_key(void) {
     return 0;
 }
 
+// Simple delay to reduce CPU usage and flickering
+void delay_ms(uint32_t ms) {
+    for (uint32_t i = 0; i < ms * 1000; i++) {
+        __asm__ __volatile__("nop");
+    }
+}
+
 void menu_loop(void) {
     draw_menu();
     
@@ -157,16 +164,22 @@ void menu_loop(void) {
             }
             update_arrow(selected_option);
             wait_key_release(KEY_UP);
+            delay_ms(50);  // Debounce delay
         } else if (scancode == KEY_DOWN) {
             if (selected_option < 3) {
                 selected_option++;
             }
             update_arrow(selected_option);
             wait_key_release(KEY_DOWN);
+            delay_ms(50);  // Debounce delay
         } else if (scancode == KEY_ENTER) {
             wait_key_release(KEY_ENTER);
+            delay_ms(100);  // Debounce delay
             return;
         }
+        
+        // Small delay to prevent tight polling loop
+        delay_ms(10);
     }
 }
 

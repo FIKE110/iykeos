@@ -33,6 +33,11 @@
     top: 0 !important;
   }
 
+  /* Fix text spacing in v86 terminal */
+  #screen_container > div:first-child > div {
+    line-height: 1.2 !important;
+  }
+
   #controls {
     margin: 10px;
   }
@@ -569,6 +574,50 @@ window.onload = async function()
         }
     }
     
+    // Pre-load all assets explicitly to ensure proper caching
+    async function loadAndCacheAllAssets() {
+        // Load seabios.bin
+        if (!cachedAssets.bios && !forceRefresh) {
+            loadingFile.textContent = "Fetching seabios.bin...";
+            try {
+                const biosData = await fetchAndCache(ASSETS.bios, "bios");
+                cachedAssets.bios = { data: biosData, size: biosData.byteLength };
+                updateProgress(10, "seabios.bin (cached)", biosData.byteLength, biosData.byteLength);
+            } catch (e) {
+                console.error("Failed to cache seabios.bin:", e);
+            }
+        }
+        
+        // Load vgabios.bin
+        if (!cachedAssets.vga && !forceRefresh) {
+            loadingFile.textContent = "Fetching vgabios.bin...";
+            try {
+                const vgaData = await fetchAndCache(ASSETS.vga, "vga");
+                cachedAssets.vga = { data: vgaData, size: vgaData.byteLength };
+                updateProgress(15, "vgabios.bin (cached)", vgaData.byteLength, vgaData.byteLength);
+            } catch (e) {
+                console.error("Failed to cache vgabios.bin:", e);
+            }
+        }
+        
+        // Load harddisk.img (the big one - 9MB)
+        if (!cachedAssets.hdd && !forceRefresh) {
+            loadingFile.textContent = "Fetching harddisk.img (this may take a while)...";
+            try {
+                const hddData = await fetchAndCache(ASSETS.hdd, "hdd");
+                cachedAssets.hdd = { data: hddData, size: hddData.byteLength };
+                const sizeMB = (hddData.byteLength / 1024 / 1024).toFixed(1);
+                updateProgress(50, `harddisk.img (cached - ${sizeMB} MB)`, hddData.byteLength, hddData.byteLength);
+                addBootMessage(`[CACHE] harddisk.img cached: ${sizeMB} MB`);
+            } catch (e) {
+                console.error("Failed to cache harddisk.img:", e);
+            }
+        }
+    }
+    
+    // Load all assets first
+    await loadAndCacheAllAssets();
+    
     // Configure V86
     const v86Config = {
         memory_size: 32 * 1024 * 1024,
@@ -591,50 +640,32 @@ window.onload = async function()
         fetchAndCache(ASSETS.wasm, "wasm");
     }
     
-    // BIOS: Use cache or fetch
-    if (cachedAssets.bios && !forceRefresh) {
+    // BIOS: Use cached buffer
+    if (cachedAssets.bios) {
         v86Config.bios = { buffer: cachedAssets.bios.data };
         updateProgress(10, "seabios.bin (from cache)", cachedAssets.bios.size, cachedAssets.bios.size);
     } else {
         v86Config.bios = { url: ASSETS.bios };
-        v86Config.bios_progress = function(e) {
-            const percent = 10 + (e.loaded / e.total) * 5;
-            updateProgress(percent, "seabios.bin", e.loaded, e.total);
-            if (e.loaded === e.total) {
-                fetchAndCache(ASSETS.bios, "bios");
-            }
-        };
+        addBootMessage("[WARN] Loading seabios.bin from network");
     }
     
-    // VGA BIOS: Use cache or fetch
-    if (cachedAssets.vga && !forceRefresh) {
+    // VGA BIOS: Use cached buffer
+    if (cachedAssets.vga) {
         v86Config.vga_bios = { buffer: cachedAssets.vga.data };
         updateProgress(15, "vgabios.bin (from cache)", cachedAssets.vga.size, cachedAssets.vga.size);
     } else {
         v86Config.vga_bios = { url: ASSETS.vga };
-        v86Config.vga_bios_progress = function(e) {
-            const percent = 15 + (e.loaded / e.total) * 5;
-            updateProgress(percent, "vgabios.bin", e.loaded, e.total);
-            if (e.loaded === e.total) {
-                fetchAndCache(ASSETS.vga, "vga");
-            }
-        };
+        addBootMessage("[WARN] Loading vgabios.bin from network");
     }
     
-    // HDD: Use cache or fetch (the big one)
-    if (cachedAssets.hdd && !forceRefresh) {
+    // HDD: Use cached buffer
+    if (cachedAssets.hdd) {
         v86Config.hda = { buffer: cachedAssets.hdd.data };
         updateProgress(50, "harddisk.img (from cache)", cachedAssets.hdd.size, cachedAssets.hdd.size);
         addBootMessage("[CACHE] Using cached harddisk.img");
     } else {
         v86Config.hda = { url: ASSETS.hdd, async: true };
-        v86Config.hda_progress = function(e) {
-            const percent = 20 + (e.loaded / e.total) * 80;
-            updateProgress(percent, "harddisk.img", e.loaded, e.total);
-            if (e.loaded === e.total) {
-                fetchAndCache(ASSETS.hdd, "hdd");
-            }
-        };
+        addBootMessage("[WARN] Loading harddisk.img from network");
     }
     
     // Initialize emulator
