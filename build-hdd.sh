@@ -75,6 +75,10 @@ sudo cp ./build/hello.bin "$MNT_POINT/HELLOEXE.IKE"
 sudo cp ./build/editor.bin "$MNT_POINT/EDITOR.IKE"
 sudo cp ./build/basic.bin "$MNT_POINT/BASIC.IKE"
 sudo cp ./build/gui2.bin "$MNT_POINT/GUI.bin"
+sudo cp ./build/game.bin "$MNT_POINT/GAME.BIN"
+sudo cp ./build/snake.bin "$MNT_POINT/SNAKE.bin"
+sudo cp ./build/tetris.bin "$MNT_POINT/TETRIS.BIN"
+sudo cp ./build/pong.bin "$MNT_POINT/PONG.BIN"
 
 if [ -d "./assets/txt" ]; then
     for file in ./assets/txt/*.txt; do

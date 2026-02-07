@@ -23,7 +23,7 @@ LDFLAGS2 := -m elf_i386 -T linker2.ld
 
 LIB_SRCS := $(LIB_DIR)/memory_os.c $(LIB_DIR)/disk.c $(LIB_DIR)/print.c \
             $(LIB_DIR)/file.c $(LIB_DIR)/strings.c $(LIB_DIR)/keyboard.c \
-            $(LIB_DIR)/screen.c $(LIB_DIR)/graphics.c
+            $(LIB_DIR)/screen.c $(LIB_DIR)/graphics.c $(LIB_DIR)/vgraphics.c
 
 LIB_OBJS := $(patsubst $(LIB_DIR)/%.c,$(LIB_OUT_DIR)/%.o,$(LIB_SRCS))
 
@@ -44,6 +44,10 @@ compile-lib: dirs $(LIB_OBJS)
 	@echo "Library compilation complete"
 
 $(LIB_OUT_DIR)/%.o: $(LIB_DIR)/%.c
+	@echo "  CC      $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(LIB_OUT_DIR)/vgraphics.o: $(LIB_DIR)/vgraphics.c
 	@echo "  CC      $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
@@ -99,6 +103,22 @@ $(BUILD_DIR)/gui2.o: $(PROGS_DIR)/gui2.c
 	@echo "  CC      $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
+$(BUILD_DIR)/game_low.o: $(PROGS_DIR)/GAME.c
+	@echo "  CC      $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+	
+$(BUILD_DIR)/snake.o: $(PROGS_DIR)/SNAKE.C
+	@echo "  CC      $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/tetris.o: $(PROGS_DIR)/TETRIS.C
+	@echo "  CC      $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
+$(BUILD_DIR)/pong.o: $(PROGS_DIR)/PONG.C
+	@echo "  CC      $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
 $(BUILD_DIR)/hello.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/hello_world_low.o
 	@echo "  LD      hello.elf"
 	@$(LD) $(LDFLAGS2) $^ -o $@
@@ -119,12 +139,28 @@ $(BUILD_DIR)/gui2.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/gui2.o
 	@echo "  LD      gui2.elf"
 	@$(LD) $(LDFLAGS2) $^ -o $@
 
+$(BUILD_DIR)/game.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/game_low.o
+	@echo "  LD      game.elf"
+	@$(LD) $(LDFLAGS2) $^ -o $@
+
+$(BUILD_DIR)/snake.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/snake.o
+	@echo "  LD      snake.elf"
+	@$(LD) $(LDFLAGS2) $^ -o $@
+
+$(BUILD_DIR)/tetris.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/tetris.o
+	@echo "  LD      tetris.elf"
+	@$(LD) $(LDFLAGS2) $^ -o $@
+
+$(BUILD_DIR)/pong.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/pong.o
+	@echo "  LD      pong.elf"
+	@$(LD) $(LDFLAGS2) $^ -o $@
+
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
 	@echo "  OBJCOPY $(notdir $@)"
 	@$(OBJCOPY) -O binary $< $@
 
 build-programs: build-kernel $(BUILD_DIR)/code_entry.o
-	@$(MAKE) $(BUILD_DIR)/hello.bin $(BUILD_DIR)/editor.bin $(BUILD_DIR)/basic.bin $(BUILD_DIR)/gui.bin $(BUILD_DIR)/gui2.bin
+	@$(MAKE) $(BUILD_DIR)/hello.bin $(BUILD_DIR)/editor.bin $(BUILD_DIR)/basic.bin $(BUILD_DIR)/gui.bin $(BUILD_DIR)/gui2.bin $(BUILD_DIR)/game.bin $(BUILD_DIR)/snake.bin $(BUILD_DIR)/tetris.bin $(BUILD_DIR)/pong.bin
 
 test-os-build: build-programs $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN)
 	@bash ./build-hdd.sh

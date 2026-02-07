@@ -5,6 +5,7 @@
 #include <memory_os.h>
 #include <strings.h>
 #include <graphics.h>
+#include "../lib/vgraphics.h"
 
 void start_shell();
 void disable_cursor();
@@ -258,7 +259,15 @@ typedef struct {
     void (*graphics_draw_box)(int x, int y, int w, int h, uint8_t color);
     void (*graphics_draw_button)(int x, int y, int w, int h, const char* label, uint8_t color);
     void (*graphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
-    void (*graphics_put_pixel)(int x, int y, uint8_t color)
+    void (*graphics_put_pixel)(int x, int y, uint8_t color);
+    void (*vgraphics_init)(void);
+    void (*vgraphics_clear)(uint8_t color);
+    void (*vgraphics_repaint)(void);
+    void (*vgraphics_put_char)(int x, int y, char c, uint8_t color);
+    void (*vgraphics_put_string)(int x, int y, const char* str, uint8_t color);
+    void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
+    void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
+    void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
 
 } os_api_t;
 
@@ -1488,6 +1497,15 @@ void init_api(){
     os_api->graphics_put_char=&put_char;
     os_api->graphics_put_string=&put_string;
     os_api->graphics_put_pixel=&putpixel;
+    os_api->int_to_str=&int_to_str;
+    os_api->vgraphics_init = &vgraphics_init;
+    os_api->vgraphics_clear = &vgraphics_clear;
+    os_api->vgraphics_repaint = &vgraphics_repaint;
+    os_api->vgraphics_put_char = &vgraphics_put_char;
+    os_api->vgraphics_put_string = &vgraphics_put_string;
+    os_api->vgraphics_draw_box = &vgraphics_draw_box;
+    os_api->vgraphics_draw_window = &vgraphics_draw_window;
+    os_api->vgraphics_draw_rect_fill = &vgraphics_draw_rect_fill;
 }
 
 void start_shell(){
@@ -1514,8 +1532,11 @@ void main(int num){
         start_shell();
 
     }
-    else{
+    else if(num==1){
         run("GUI.BIN");
+    }
+    else if(num==2){
+        run("GAME.BIN");
     }
     kernel_api->block();
 }

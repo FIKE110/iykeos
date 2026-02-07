@@ -845,9 +845,9 @@ void draw_gui(int mx, int my, int menu_open, int programs_menu_open, int welcome
 void window() {
     os_api->disable_cursor();
     os_api->graphics_init();
-    os_api->graphics_loading_screen();  // Show loading screen after graphics init
+    os_api->graphics_loading_screen();
     os_api->mouse_init();
-    os_api->keyboard_init();  // Initialize keyboard when GUI starts
+    os_api->keyboard_init(); 
     
  
     int mx = 40, my = 12;
