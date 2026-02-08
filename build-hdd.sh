@@ -1,7 +1,8 @@
 #!/bin/bash
 set -e
 
-IMG_FILE="./build/harddisk.img"
+IMG_NAME="harddisk.img"
+IMG_FILE="./build/$IMG_NAME"
 IMG_SIZE_MB=9
 MNT_POINT="/mnt/learn-os-temp"
 
@@ -100,5 +101,7 @@ if [ -d "./assets/txt" ]; then
         fi
     done
 fi
+
+sudo cp $IMG_FILE "./web/assets/${IMG_NAME}"
 
 echo "--- Build successful: $IMG_FILE ---"

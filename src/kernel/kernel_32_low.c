@@ -139,7 +139,7 @@ void wait_key_release(uint8_t scancode) {
 uint8_t get_key(void) {
     uint8_t scancode = inb(0x60);
     if (scancode != 0) {
-        wait_key_release(scancode);
+        // wait_key_release(scancode);
         return scancode;
     }
     return 0;
@@ -154,27 +154,34 @@ void delay_ms(uint32_t ms) {
 
 void menu_loop(void) {
     draw_menu();
-    
+
     while (1) {
         uint8_t scancode = get_key();
-        
-        if (scancode == KEY_UP) {
+
+        // Up arrow (0x48) or 'w' key (0x11)
+        if (scancode == KEY_UP || scancode == 0x11) {
             if (selected_option > 0) {
                 selected_option--;
             }
             update_arrow(selected_option);
-            wait_key_release(KEY_UP);
+            wait_key_release(scancode);
             delay_ms(50);  // Debounce delay
-        } else if (scancode == KEY_DOWN) {
+        }
+        // Down arrow (0x50) or 's' key (0x1F)
+        else if (scancode == KEY_DOWN || scancode == 0x1F) {
             if (selected_option < 3) {
                 selected_option++;
             }
             update_arrow(selected_option);
-            wait_key_release(KEY_DOWN);
+            wait_key_release(scancode);
             delay_ms(50);  // Debounce delay
-        } else if (scancode == KEY_ENTER) {
+        }
+        else if (scancode == KEY_ENTER) {
             wait_key_release(KEY_ENTER);
             delay_ms(100);  // Debounce delay
+            // Send break code (key release) for Enter
+            uint16_t* vga = (uint16_t*)0xB8000;
+            // You can optionally add visual feedback here
             return;
         }
         

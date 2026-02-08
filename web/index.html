@@ -247,6 +247,182 @@
   .boot-line {
     margin: 2px 0;
   }
+
+  /* Mobile Responsive Styles */
+  @media (max-width: 950px) {
+    #screen_container {
+      width: 95vw;
+      height: 63vw;
+      max-width: 900px;
+      max-height: 600px;
+    }
+    
+    body {
+      padding: 10px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    body {
+      padding: 5px;
+    }
+    
+    h2 {
+      font-size: 16px;
+      margin: 10px 0;
+    }
+    
+    #screen_container {
+      width: 100%;
+      height: 66vw;
+      margin: 5px auto;
+      border-width: 2px;
+    }
+    
+    #runtime_options {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 5px;
+      padding: 5px;
+    }
+    
+    #runtime_options input[type="button"] {
+      padding: 6px 10px;
+      font-size: 11px;
+      margin: 2px;
+    }
+    
+    #runtime_options label {
+      font-size: 11px;
+    }
+    
+    .loading-title {
+      font-size: 20px;
+    }
+    
+    .loading-subtitle {
+      font-size: 12px;
+    }
+    
+    .progress-container {
+      width: 80%;
+      max-width: 300px;
+    }
+    
+    .file-cache-list {
+      max-width: 90%;
+      font-size: 9px;
+    }
+    
+    .boot-log {
+      font-size: 8px;
+      bottom: 10px;
+      left: 10px;
+      max-height: 60px;
+    }
+  }
+
+  @media (max-width: 400px) {
+    #runtime_options input[type="button"] {
+      padding: 5px 8px;
+      font-size: 10px;
+    }
+    
+    .cache-actions button {
+      padding: 4px 8px;
+      font-size: 10px;
+    }
+  }
+
+  /* Touch-friendly buttons for mobile */
+  @media (hover: none) and (pointer: coarse) {
+    button, input[type="button"] {
+      min-height: 44px;
+      min-width: 44px;
+    }
+
+    #runtime_options input[type="button"] {
+      min-height: 36px;
+    }
+  }
+
+  /* Mobile Input Container */
+  .mobile-input-container {
+    margin: 15px auto;
+    width: 900px;
+    text-align: center;
+  }
+
+  .mobile-control-buttons {
+    margin-top: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .mobile-control-buttons button {
+    padding: 8px 12px;
+    background: #2a2a2a;
+    border: 1px solid #444;
+    color: #00ff88;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: monospace;
+    font-size: 12px;
+    min-width: 60px;
+  }
+
+  .mobile-input-label {
+    font-size: 11px;
+    color: #666;
+    margin-top: 8px;
+  }
+
+  /* Mobile responsive for input container */
+  @media (max-width: 950px) {
+    .mobile-input-container {
+      width: 95vw;
+      max-width: 900px;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .mobile-input-container {
+      width: 100%;
+      margin: 10px auto;
+      padding: 0 5px;
+    }
+
+    .mobile-input-container textarea {
+      height: 50px;
+      font-size: 14px; /* Larger font for mobile */
+    }
+
+    .mobile-control-buttons {
+      gap: 5px;
+    }
+
+    .mobile-control-buttons button {
+      padding: 10px 8px;
+      font-size: 11px;
+      min-width: 50px;
+      min-height: 40px;
+    }
+
+    .mobile-input-label {
+      font-size: 10px;
+    }
+  }
+
+  @media (max-width: 400px) {
+    .mobile-control-buttons button {
+      padding: 8px 6px;
+      font-size: 10px;
+      min-width: 45px;
+    }
+  }
 </style>
 </head>
 
@@ -276,7 +452,8 @@
 
 <div id="screen_container">
     <div style="white-space: pre; font: 14px monospace; line-height: 14px"></div>
-    <canvas style="display: none"></canvas>
+    <canvas  id="vga" style="display: none"></canvas>
+
     
     <!-- Loading Overlay -->
     <div id="loading_overlay">
@@ -320,6 +497,37 @@
             <div class="boot-line">[BOOT] x86 32-bit Protected Mode</div>
         </div>
     </div>
+</div>
+
+<!-- Mobile Keyboard Input -->
+<div class="mobile-input-container">
+    <textarea id="mobile_input"
+              placeholder="Tap here for mobile keyboard input..."
+              style="width: 100%;
+                     height: 60px;
+                     background: #1a1a1a;
+                     color: #00ff88;
+                     border: 1px solid #333;
+                     border-radius: 4px;
+                     padding: 10px;
+                     font-family: 'Courier New', monospace;
+                     font-size: 12px;
+                     resize: vertical;
+                     outline: none;
+                     box-sizing: border-box;"></textarea>
+
+    <!-- Control Buttons for Special Keys -->
+    <div class="mobile-control-buttons">
+        <button onclick="sendSpecialKey('up')">↑ Up</button>
+        <button onclick="sendSpecialKey('down')">↓ Down</button>
+        <button onclick="sendSpecialKey('left')">← Left</button>
+        <button onclick="sendSpecialKey('right')">→ Right</button>
+        <button onclick="sendSpecialKey('enter')">↵ Enter</button>
+        <button onclick="sendSpecialKey('esc')" style="color: #ff6666;">Esc</button>
+        <button onclick="sendSpecialKey('ctrl')" style="color: #6699ff;">Ctrl</button>
+        <button onclick="sendSpecialKey('tab')" style="color: #ffaa00;">Tab</button>
+    </div>
+    <div class="mobile-input-label">Mobile keyboard input area • Use buttons above for special keys</div>
 </div>
 
 <script>
@@ -598,56 +806,73 @@ window.onload = async function()
         }
     }
     
-    // Pre-load all assets explicitly to ensure proper caching
+    // Pre-load all assets in parallel for faster loading
     async function loadAndCacheAllAssets() {
+        const promises = [];
+        
         // Load seabios.bin
         if (!cachedAssets.bios && !forceRefresh) {
-            loadingFile.textContent = "Fetching seabios.bin...";
-            try {
-                const biosData = await fetchAndCache(ASSETS.bios, "bios");
-                cachedAssets.bios = { data: biosData, size: biosData.byteLength };
-                updateProgress(10, "seabios.bin (cached)", biosData.byteLength, biosData.byteLength);
-            } catch (e) {
-                console.error("Failed to cache seabios.bin:", e);
-            }
+            promises.push(
+                fetchAndCache(ASSETS.bios, "bios")
+                    .then(data => {
+                        cachedAssets.bios = { data: data, size: data.byteLength };
+                        updateProgress(10, "seabios.bin (cached)", data.byteLength, data.byteLength);
+                    })
+                    .catch(e => console.error("Failed to cache seabios.bin:", e))
+            );
         }
         
         // Load vgabios.bin
         if (!cachedAssets.vga && !forceRefresh) {
-            loadingFile.textContent = "Fetching vgabios.bin...";
-            try {
-                const vgaData = await fetchAndCache(ASSETS.vga, "vga");
-                cachedAssets.vga = { data: vgaData, size: vgaData.byteLength };
-                updateProgress(15, "vgabios.bin (cached)", vgaData.byteLength, vgaData.byteLength);
-            } catch (e) {
-                console.error("Failed to cache vgabios.bin:", e);
-            }
+            promises.push(
+                fetchAndCache(ASSETS.vga, "vga")
+                    .then(data => {
+                        cachedAssets.vga = { data: data, size: data.byteLength };
+                        updateProgress(15, "vgabios.bin (cached)", data.byteLength, data.byteLength);
+                    })
+                    .catch(e => console.error("Failed to cache vgabios.bin:", e))
+            );
         }
         
         // Load harddisk.img (the big one - 9MB)
         if (!cachedAssets.hdd && !forceRefresh) {
             loadingFile.textContent = "Fetching harddisk.img (this may take a while)...";
-            try {
-                const hddData = await fetchAndCache(ASSETS.hdd, "hdd");
-                cachedAssets.hdd = { data: hddData, size: hddData.byteLength };
-                const sizeMB = (hddData.byteLength / 1024 / 1024).toFixed(1);
-                updateProgress(50, `harddisk.img (cached - ${sizeMB} MB)`, hddData.byteLength, hddData.byteLength);
-                addBootMessage(`[CACHE] harddisk.img cached: ${sizeMB} MB`);
-            } catch (e) {
-                console.error("Failed to cache harddisk.img:", e);
-            }
+            promises.push(
+                fetchAndCache(ASSETS.hdd, "hdd")
+                    .then(data => {
+                        cachedAssets.hdd = { data: data, size: data.byteLength };
+                        const sizeMB = (data.byteLength / 1024 / 1024).toFixed(1);
+                        updateProgress(50, `harddisk.img (cached - ${sizeMB} MB)`, data.byteLength, data.byteLength);
+                        addBootMessage(`[CACHE] harddisk.img cached: ${sizeMB} MB`);
+                    })
+                    .catch(e => console.error("Failed to cache harddisk.img:", e))
+            );
         }
+        
+        // Wait for all downloads to complete in parallel
+        await Promise.all(promises);
     }
     
-    // Load all assets first
+    // Load all assets in parallel
     await loadAndCacheAllAssets();
     
-    // Configure V86
+    // Configure V86 with performance optimizations
     const v86Config = {
         memory_size: 32 * 1024 * 1024,
         vga_memory_size: 2 * 1024 * 1024,
         screen_container: document.getElementById("screen_container"),
         autostart: true,
+        
+        // Performance optimizations
+        acpi: false,           // Disable ACPI for better performance
+        apic: false,           // Disable APIC
+        network_relay_url: undefined,  // Disable network
+        
+        // Speed settings
+        cpu: {
+            vendor: "intel",
+            model: 0x1,        // Pentium Pro
+        }
     };
     
     // WASM: Use cache or fetch
@@ -828,6 +1053,76 @@ window.onload = async function()
             } catch (e) {
                 alert("Failed to refresh: " + e.message);
             }
+        }
+    };
+    
+    // Mobile keyboard input handling with debouncing for performance
+    const mobileInput = document.getElementById("mobile_input");
+    let inputTimeout = null;
+    
+    if (mobileInput && window.emulator) {
+        mobileInput.addEventListener("input", function(e) {
+            const text = e.target.value;
+            if (text.length > 0) {
+                // Clear immediately for next input
+                e.target.value = "";
+                
+                // Debounce: wait a tiny bit then send
+                if (inputTimeout) clearTimeout(inputTimeout);
+                inputTimeout = setTimeout(() => {
+                    if (window.emulator) {
+                        window.emulator.keyboard_send_text(text);
+                    }
+                }, 10);
+            }
+        });
+
+        // Handle special keys that don't trigger input event
+        mobileInput.addEventListener("keydown", function(e) {
+            if (e.key === "Enter") {
+                e.preventDefault();
+                if (window.emulator) {
+                    // Send make code (press) then break code (release) for Enter
+                    window.emulator.keyboard_send_scancodes([0x1C]);  // Press
+                    setTimeout(() => {
+                        window.emulator.keyboard_send_scancodes([0x9C]);  // Release (0x1C + 0x80)
+                    }, 50);
+                }
+                e.target.value = "";
+            } else if (e.key === "Backspace") {
+                e.preventDefault();
+                if (window.emulator) {
+                    // Send make code (press) then break code (release) for Backspace
+                    window.emulator.keyboard_send_scancodes([0x0E]);  // Press
+                    setTimeout(() => {
+                        window.emulator.keyboard_send_scancodes([0x8E]);  // Release (0x0E + 0x80)
+                    }, 50);
+                }
+            }
+        });
+    }
+
+    // Global function for control buttons
+    window.sendSpecialKey = function(key) {
+        if (!window.emulator) return;
+
+        const scancodes = {
+            'up': { press: 0x48, release: 0xC8 },
+            'down': { press: 0x50, release: 0xD0 },
+            'left': { press: 0x4B, release: 0xCB },
+            'right': { press: 0x4D, release: 0xCD },
+            'enter': { press: 0x1C, release: 0x9C },
+            'esc': { press: 0x01, release: 0x81 },
+            'ctrl': { press: 0x1D, release: 0x9D },
+            'tab': { press: 0x0F, release: 0x8F }
+        };
+
+        if (scancodes[key]) {
+            // Send press then release after 50ms
+            window.emulator.keyboard_send_scancodes([scancodes[key].press]);
+            setTimeout(() => {
+                window.emulator.keyboard_send_scancodes([scancodes[key].release]);
+            }, 50);
         }
     };
 };
