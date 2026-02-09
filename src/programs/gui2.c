@@ -131,9 +131,19 @@ typedef struct {
     void (*graphics_draw_box)(int x, int y, int w, int h, uint8_t color);
     void (*graphics_draw_button)(int x, int y, int w, int h, const char* label, uint8_t color);
     void (*graphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
-    void (*graphics_putpixel)(int x, int y, uint8_t color);
+    void (*graphics_put_pixel)(int x, int y, uint8_t color);
+    void (*vgraphics_init)(void);
+    void (*vgraphics_clear)(uint8_t color);
+    void (*vgraphics_repaint)(void);
+    void (*vgraphics_put_char)(int x, int y, char c, uint8_t color);
+    void (*vgraphics_put_string)(int x, int y, const char* str, uint8_t color);
+    void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
+    void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
+    void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
+    int (*run_with_status)(char* filename);
 
 } os_api_t;
+
 
 
 os_api_t* os_api;
@@ -219,151 +229,18 @@ void draw_icon(int x, int y, const char* art, const char* label, uint8_t bg_col,
     buffer_put_string(x, y+2, label, (COLOR_BLUE << 4) | label_col);
 }
 
+// Updated APP IDs - removed Web, Config, Music, Video, Help; added Runner and Clock
 #define APP_NONE 0
-#define APP_FILES 1
-#define APP_SHELL 2
-#define APP_WEB   3
-#define APP_EDIT  4
-#define APP_CONFIG 5
-#define APP_MUSIC 6
-#define APP_VIDEO 7
-#define APP_CALC  8
-#define APP_NOTES 9
-#define APP_HELP  10
+#define APP_SHELL 1
+#define APP_RUNNER 2
+#define APP_EDIT  3
+#define APP_CLOCK 4
+#define APP_CALC 5
+#define APP_NOTES 6
 
-void draw_files_app(int x, int y, int w, int h, int mx, int my, int scroll_offset) {
-    // Background
-    buffer_draw_rect_fill(x, y, w, h, COLOR_WHITE);
-    
-    // Toolbar
-    buffer_draw_rect_fill(x, y, w, 1, COLOR_LIGHT_GRAY);
-    
-    // New File Button
-    int hover_nf = (mx >= x && mx < x + 10 && my == y);
-    uint8_t attr_nf = hover_nf ? ((COLOR_BLUE << 4) | COLOR_WHITE) : ((COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    buffer_put_string(x, y, " New File ", attr_nf);
-    
-    // New Dir Button
-    int hover_nd = (mx >= x + 11 && mx < x + 21 && my == y);
-    uint8_t attr_nd = hover_nd ? ((COLOR_BLUE << 4) | COLOR_WHITE) : ((COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    buffer_put_string(x + 11, y, " New Dir ", attr_nd);
-    
-    // Scroll Up
-    int hover_up = (mx >= x + w - 6 && mx < x + w - 3 && my == y);
-    uint8_t attr_up = hover_up ? ((COLOR_BLUE << 4) | COLOR_WHITE) : ((COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    buffer_put_string(x + w - 6, y, "[^]", attr_up);
-
-    // Scroll Down
-    int hover_dn = (mx >= x + w - 3 && mx < x + w && my == y);
-    uint8_t attr_dn = hover_dn ? ((COLOR_BLUE << 4) | COLOR_WHITE) : ((COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    buffer_put_string(x + w - 3, y, "[v]", attr_dn);
-
-    // Header
-    buffer_draw_rect_fill(x, y + 1, w, 1, COLOR_LIGHT_GRAY);
-    buffer_put_string(x + 1, y + 1, "Name     Ext   Size", (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    
-    // Content
-    fat16_dir_entry entries[512]; 
-    int count = os_api->fat16_list_root(entries, 512);
-    
-    // Debug count
-    char count_str[16];
-    os_api->int_to_str(count, count_str);
-    buffer_put_string(x + 60, y + 1, "Count: ", (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    buffer_put_string(x + 67, y + 1, count_str, (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    
-    int row = 0;
-    for (int i = 0; i < count; i++) {
-        if (entries[i].name[0] == 0) continue;
-        if ((uint8_t)entries[i].name[0] == 0xE5) continue; // Deleted
-        
-        // Skip for scroll
-        if (i < scroll_offset) continue;
-        
-        if (row >= h - 3) break; // Clip (h - toolbar - header - padding)
-        
-        int item_y = y + 2 + row;
-        
-        // Hover effect
-        int is_hovered = (mx >= x && mx < x + w && my == item_y);
-        uint8_t bg = is_hovered ? COLOR_BLUE : COLOR_WHITE;
-        uint8_t fg = is_hovered ? COLOR_WHITE : COLOR_BLACK;
-        uint8_t attr = (bg << 4) | fg;
-        
-        // Clear line background
-        for(int k=0; k<w; k++) {
-            buffer_put_char(x+k, item_y, ' ', attr);
-        }
-        
-        // Name
-        char name_buf[9];
-        os_api->memcpy(name_buf, entries[i].name, 8);
-        name_buf[8] = 0;
-        // Trim spaces
-        for(int k=7; k>=0; k--) { if(name_buf[k]==' ') name_buf[k]=0; else break; }
-        buffer_put_string(x + 1, item_y, name_buf, attr);
-        
-        // Ext
-        char ext_buf[4];
-        os_api->memcpy(ext_buf, entries[i].ext, 3);
-        ext_buf[3] = 0;
-        buffer_put_string(x + 10, item_y, ext_buf, attr);
-        
-        // Size or DIR
-        if (entries[i].attr & 0x10) {
-            buffer_put_string(x + 16, item_y, "<DIR>", attr);
-        } else {
-            char size_buf[10];
-            os_api->int_to_str(entries[i].size, size_buf);
-            buffer_put_string(x + 16, item_y, size_buf, attr);
-        }
-        
-        row++;
-    }
-}
-
-int handle_files_click(int x, int y, int w, int h, int mx, int my, int scroll_offset) {
-    // Toolbar Clicks
-    if (my == y) {
-        if (mx >= x && mx < x + 10) return 2; // New File
-        if (mx >= x + 11 && mx < x + 21) return 3; // New Dir
-        if (mx >= x + w - 6 && mx < x + w - 3) return 4; // Scroll Up
-        if (mx >= x + w - 3 && mx < x + w) return 5; // Scroll Down
-        return 0;
-    }
-
-    fat16_dir_entry entries[512];
-    int count = os_api->fat16_list_root(entries, 512);
-    
-    int row = 0;
-    for (int i = 0; i < count; i++) {
-        if (entries[i].name[0] == 0) continue;
-        if ((uint8_t)entries[i].name[0] == 0xE5) continue;
-        
-        if (i < scroll_offset) continue;
-        if (row >= h - 3) break;
-        
-        int item_y = y + 2 + row;
-        
-        if (mx >= x && mx < x + w && my == item_y) {
-            // Clicked this item
-            char name_buf[12];
-            os_api->memcpy(name_buf, entries[i].name, 8);
-            int k = 7;
-            while(k>=0 && name_buf[k]==' ') name_buf[k--]=0;
-            name_buf[k+1] = 0;
-            
-            if (entries[i].attr & 0x10) {
-                // Directory
-                os_api->fat16_chdir(name_buf);
-                return 1; // Changed dir
-            }
-            return 0;
-        }
-        row++;
-    }
-    return 0;
-}
+// Forward declarations for path functions
+void path_go_up(char* path);
+void path_join(char* path, const char* name);
 
 void draw_calc_app(int x, int y, int w, int h, int mx, int my, char* calc_buffer) {
     // Background
@@ -465,15 +342,6 @@ void handle_calc_click(int x, int y, int w, int h, int mx, int my, char* calc_bu
     }
 }
 
-void draw_web_app(int x, int y, int w, int h, int mx, int my) {
-    buffer_draw_rect_fill(x, y, w, h, COLOR_WHITE);
-    buffer_draw_rect_fill(x, y, w, 1, COLOR_LIGHT_GRAY); // Address bar
-    buffer_put_string(x + 1, y, "https://iykeos.net", (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    
-    buffer_put_string(x + 2, y + 4, "Welcome to the Web!", (COLOR_WHITE << 4) | COLOR_BLACK);
-    buffer_put_string(x + 2, y + 6, "No network adapter found.", (COLOR_WHITE << 4) | COLOR_RED);
-}
-
 void draw_edit_app(int x, int y, int w, int h, int mx, int my, char* edit_buffer, char* filename) {
     // Background
     buffer_draw_rect_fill(x, y, w, h, COLOR_WHITE);
@@ -543,47 +411,6 @@ int handle_edit_click(int x, int y, int w, int h, int mx, int my) {
     return 0;
 }
 
-void draw_config_app(int x, int y, int w, int h, int mx, int my) {
-    buffer_draw_rect_fill(x, y, w, h, COLOR_LIGHT_GRAY);
-    
-    buffer_put_string(x + 2, y + 2, "System Configuration", (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    buffer_put_string(x + 2, y + 4, "Resolution: 80x25 Text", (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    buffer_put_string(x + 2, y + 6, "Memory: 128 MB (Simulated)", (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    buffer_put_string(x + 2, y + 8, "OS Version: 0.2", (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-}
-
-void draw_music_app(int x, int y, int w, int h, int mx, int my) {
-    buffer_draw_rect_fill(x, y, w, h, COLOR_BLACK);
-    
-    buffer_put_string(x + 2, y + 2, "Music Player", (COLOR_BLACK << 4) | COLOR_WHITE);
-    
-    // Play Button
-    int hover = (mx >= x + 2 && mx < x + 8 && my == y + 5);
-    uint8_t attr = hover ? ((COLOR_GREEN << 4) | COLOR_WHITE) : ((COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
-    buffer_put_string(x + 2, y + 5, " PLAY ", attr);
-    
-    buffer_put_string(x + 10, y + 5, "No tracks found.", (COLOR_BLACK << 4) | COLOR_DARK_GRAY);
-}
-
-void draw_video_app(int x, int y, int w, int h, int mx, int my) {
-    buffer_draw_rect_fill(x, y, w, h, COLOR_BLACK);
-    buffer_put_string(x + 2, y + 2, "Video Player", (COLOR_BLACK << 4) | COLOR_WHITE);
-    
-    // Screen
-    buffer_draw_rect_fill(x + 5, y + 5, w - 10, h - 8, COLOR_DARK_GRAY);
-    buffer_put_string(x + 15, y + 8, "No Signal", (COLOR_DARK_GRAY << 4) | COLOR_WHITE);
-}
-
-void draw_help_app(int x, int y, int w, int h, int mx, int my) {
-    buffer_draw_rect_fill(x, y, w, h, COLOR_WHITE);
-    buffer_put_string(x + 2, y + 2, "Help & Support", (COLOR_WHITE << 4) | COLOR_BLUE);
-    
-    buffer_put_string(x + 2, y + 4, "- Click icons to open apps", (COLOR_WHITE << 4) | COLOR_BLACK);
-    buffer_put_string(x + 2, y + 6, "- Use [X] to close windows", (COLOR_WHITE << 4) | COLOR_BLACK);
-    buffer_put_string(x + 2, y + 8, "- Files app supports scrolling", (COLOR_WHITE << 4) | COLOR_BLACK);
-    buffer_put_string(x + 2, y + 10, "- Notes app saves to disk", (COLOR_WHITE << 4) | COLOR_BLACK);
-}
-
 void draw_notes_app(int x, int y, int w, int h, int mx, int my, char* notes_buffer) {
     // Background
     buffer_draw_rect_fill(x, y, w, h, COLOR_WHITE);
@@ -645,7 +472,212 @@ void handle_notes_click(int x, int y, int w, int h, int mx, int my, char* notes_
     }
 }
 
-void draw_gui(int mx, int my, int menu_open, int programs_menu_open, int welcome_open, int app_window_open, char* app_window_title, int scroll_offset, int input_mode, char* input_buffer, char* calc_buffer, char* notes_buffer, char* edit_buffer, char* edit_filename) {
+// Forward declarations
+// Forward declarations for path functions
+void path_go_up(char* path);
+void path_join(char* path, const char* name);
+
+void path_go_up(char* path) {
+    int len = os_api->strlen(path);
+    if (len <= 1) { // is root
+        return;
+    }
+    path[len - 1] = '\0'; // remove trailing /
+    int i = os_api->strlen(path) -1;
+    while(i > 0 && path[i] != '/'){
+        i--;
+    }
+    path[i+1] = '\0';
+}
+
+void path_join(char* path, const char* name) {
+    if(os_api->strcmp(name, ".") == 0) return;
+    if(os_api->strcmp(name, "..") == 0){
+        path_go_up(path);
+        return;
+    }
+    int len = os_api->strlen(path);
+    if(len > 1){
+        os_api->strcat(path, name);
+        os_api->strcat(path, "/");
+    } else {
+        os_api->strcpy(path, "/");
+        os_api->strcat(path, name);
+        os_api->strcat(path, "/");
+    }
+}
+
+// NEW: Clock App - Shows real-time RTC clock
+void draw_clock_app(int x, int y, int w, int h, int mx, int my) {
+    buffer_draw_rect_fill(x, y, w, h, COLOR_BLACK);
+    
+    // Get RTC time
+    uint8_t hour, minute, second;
+    os_api->get_rtc_time(&hour, &minute, &second);
+    
+    // Get RTC date
+    uint8_t day, month, year;
+    os_api->get_rtc_date(&day, &month, &year);
+    
+    // Format time string: HH:MM:SS
+    char time_str[12];
+    time_str[0] = (hour / 10) + '0';
+    time_str[1] = (hour % 10) + '0';
+    time_str[2] = ':';
+    time_str[3] = (minute / 10) + '0';
+    time_str[4] = (minute % 10) + '0';
+    time_str[5] = ':';
+    time_str[6] = (second / 10) + '0';
+    time_str[7] = (second % 10) + '0';
+    time_str[8] = 0;
+    
+    // Format date string: DD/MM/YYYY
+    char date_str[16];
+    date_str[0] = (day / 10) + '0';
+    date_str[1] = (day % 10) + '0';
+    date_str[2] = '/';
+    date_str[3] = (month / 10) + '0';
+    date_str[4] = (month % 10) + '0';
+    date_str[5] = '/';
+    date_str[6] = '2';
+    date_str[7] = '0';
+    date_str[8] = (year / 10) + '0';
+    date_str[9] = (year % 10) + '0';
+    date_str[10] = 0;
+    
+    // Display time in large format (centered)
+    uint8_t time_attr = (COLOR_BLACK << 4) | COLOR_LIGHT_GREEN;
+    buffer_put_string(x + (w - 8) / 2, y + 5, time_str, time_attr);
+    
+    // Display date below
+    uint8_t date_attr = (COLOR_BLACK << 4) | COLOR_WHITE;
+    buffer_put_string(x + (w - 10) / 2, y + 8, date_str, date_attr);
+    
+    // Display title
+    buffer_put_string(x + (w - 14) / 2, y + 2, "RTC CLOCK", (COLOR_BLACK << 4) | COLOR_LIGHT_CYAN);
+}
+
+// NEW: Runner App - File browser for .bin/.ike/.bas/.bgs files
+void draw_runner_app(int x, int y, int w, int h, int mx, int my, 
+                     fat16_dir_entry* files, int file_count, 
+                     int scroll_offset, int selected) {
+    // Background
+    buffer_draw_rect_fill(x, y, w, h, COLOR_WHITE);
+    
+    // Toolbar
+    buffer_draw_rect_fill(x, y, w, 1, COLOR_LIGHT_GRAY);
+    
+    // Run Button
+    int hover_run = (mx >= x && mx < x + 6 && my == y);
+    uint8_t attr_run = hover_run ? ((COLOR_GREEN << 4) | COLOR_WHITE) : ((COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
+    buffer_put_string(x, y, " Run ", attr_run);
+    
+    // Refresh Button
+    int hover_refresh = (mx >= x + 7 && mx < x + 16 && my == y);
+    uint8_t attr_refresh = hover_refresh ? ((COLOR_BLUE << 4) | COLOR_WHITE) : ((COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
+    buffer_put_string(x + 7, y, " Refresh ", attr_refresh);
+    
+    // Header
+    buffer_draw_rect_fill(x, y + 1, w, 1, COLOR_LIGHT_GRAY);
+    buffer_put_string(x + 1, y + 1, "Name      Type     Status", (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
+    
+    // List files
+    int row = 0;
+    for (int i = scroll_offset; i < file_count && row < h - 3; i++) {
+        // Check if file has supported extension
+        char* ext = (char*)files[i].ext;
+        int is_bin = (ext[0]=='B' && ext[1]=='I' && ext[2]=='N');
+        int is_ike = (ext[0]=='I' && ext[1]=='K' && ext[2]=='E');
+        int is_bas = (ext[0]=='B' && ext[1]=='A' && ext[2]=='S');
+        int is_bgs = (ext[0]=='B' && ext[1]=='G' && ext[2]=='S');
+        
+        if (!is_bin && !is_ike && !is_bas && !is_bgs) continue;
+        
+        int item_y = y + 2 + row;
+        uint8_t row_attr = (i == selected) ? 
+            ((COLOR_BLUE << 4) | COLOR_WHITE) : 
+            ((COLOR_WHITE << 4) | COLOR_BLACK);
+            
+        // Clear line
+        for(int k=0; k<w; k++) {
+            buffer_put_char(x+k, item_y, ' ', row_attr);
+        }
+        
+        // Display filename
+        char name_buf[13];
+        os_api->memcpy(name_buf, files[i].name, 8);
+        name_buf[8] = 0;
+        // Trim trailing spaces
+        for(int k=7; k>=0; k--) { 
+            if(name_buf[k]==' ') name_buf[k]=0; 
+            else break; 
+        }
+        
+        // Append extension
+        int name_len = os_api->strlen(name_buf);
+        name_buf[name_len] = '.';
+        name_buf[name_len+1] = ext[0];
+        name_buf[name_len+2] = ext[1];
+        name_buf[name_len+3] = ext[2];
+        name_buf[name_len+4] = 0;
+        
+        buffer_put_string(x + 1, item_y, name_buf, row_attr);
+        
+        // Display type
+        char type_str[8];
+        if (is_bin) os_api->strcpy(type_str, "BIN");
+        else if (is_ike) os_api->strcpy(type_str, "IKE");
+        else if (is_bas) os_api->strcpy(type_str, "BASIC");
+        else if (is_bgs) os_api->strcpy(type_str, "GBASIC");
+        else os_api->strcpy(type_str, "UNK");
+        buffer_put_string(x + 12, item_y, type_str, row_attr);
+        
+        // Display status
+        char status_str[16];
+        if (is_bin || is_ike) {
+            os_api->strcpy(status_str, "Runnable");
+        } else {
+            os_api->strcpy(status_str, "Script");
+        }
+        buffer_put_string(x + 22, item_y, status_str, row_attr);
+        
+        row++;
+    }
+}
+
+// Handle click in runner app - returns action code
+int handle_runner_click(int x, int y, int w, int h, int mx, int my, 
+                        fat16_dir_entry* files, int file_count, int scroll_offset) {
+    // Toolbar clicks
+    if (my == y) {
+        if (mx >= x && mx < x + 6) return -1; // Run button clicked
+        if (mx >= x + 7 && mx < x + 16) return -2; // Refresh button clicked
+        return 0;
+    }
+    
+    // File list clicks
+    int row = 0;
+    for (int i = scroll_offset; i < file_count; i++) {
+        char* ext = (char*)files[i].ext;
+        int is_bin = (ext[0]=='B' && ext[1]=='I' && ext[2]=='N');
+        int is_ike = (ext[0]=='I' && ext[1]=='K' && ext[2]=='E');
+        int is_bas = (ext[0]=='B' && ext[1]=='A' && ext[2]=='S');
+        int is_bgs = (ext[0]=='B' && ext[1]=='G' && ext[2]=='S');
+        
+        if (!is_bin && !is_ike && !is_bas && !is_bgs) continue;
+        
+        int item_y = y + 2 + row;
+        if (mx >= x && mx < x + w && my == item_y) {
+            return i + 1; // Return file index + 1 (1-based to distinguish from 0)
+        }
+        row++;
+        if (row >= h - 3) break;
+    }
+    
+    return 0;
+}
+
+void draw_gui(int mx, int my, int menu_open, int programs_menu_open, int welcome_open, int app_window_open, char* app_window_title, int input_mode, char* input_buffer, char* calc_buffer, char* notes_buffer, char* edit_buffer, char* edit_filename, fat16_dir_entry* runner_files, int runner_file_count, int runner_scroll, int runner_selected) {
     buffer_draw_rect_fill(0, 0, 80, 1, COLOR_DARK_GRAY);
     uint8_t top_base = (COLOR_DARK_GRAY << 4) | COLOR_WHITE;
     buffer_put_string(2, 0, "IYKEOS", top_base);
@@ -661,30 +693,24 @@ void draw_gui(int mx, int my, int menu_open, int programs_menu_open, int welcome
     attr = is_hover(mx, my, 39, 0, 4, 1) ? ((COLOR_LIGHT_GRAY << 4) | COLOR_BLACK) : top_base;
     buffer_put_string(39, 0, "Help", attr);
 
-    // 2. Desktop Icons
+    // 2. Desktop Icons - Updated layout (7 icons total)
     // Column 1
-    draw_icon(2, 3, "[T]", "Shell", COLOR_DARK_GRAY, mx, my);
-    draw_icon(2, 8, "[F]", "Files", COLOR_YELLOW, mx, my);
-    draw_icon(2, 13, "[B]", "Web", COLOR_LIGHT_BLUE, mx, my);
-    draw_icon(2, 18, "[E]", "Edit", COLOR_RED, mx, my);
+    draw_icon(2, 3, ">$", "Shell", COLOR_DARK_GRAY, mx, my);
+    draw_icon(2, 8, "[~]", "Files", COLOR_YELLOW, mx, my);
+    draw_icon(2, 13, "(>)", "Runner", COLOR_LIGHT_GREEN, mx, my);
+    draw_icon(2, 18, "Aa", "Edit", COLOR_RED, mx, my);
     
     // Column 2
-    draw_icon(12, 3, "[S]", "Config", COLOR_LIGHT_GRAY, mx, my);
-    draw_icon(12, 8, "[M]", "Music", COLOR_MAGENTA, mx, my);
-    draw_icon(12, 13, "[V]", "Video", COLOR_GREEN, mx, my);
-    draw_icon(12, 18, "[C]", "Calc", COLOR_CYAN, mx, my);
-    
-    // Column 3
-    draw_icon(22, 3, "[N]", "Notes", COLOR_WHITE, mx, my);
-    draw_icon(22, 8, "[H]", "Help", COLOR_LIGHT_GREEN, mx, my);
-
+    draw_icon(12, 3, "[*]", "Clock", COLOR_LIGHT_CYAN, mx, my);
+    draw_icon(12, 8, "+-", "Calc", COLOR_CYAN, mx, my);
+    draw_icon(12, 13, "txt", "Notes", COLOR_WHITE, mx, my);
 
     // 3. Window (Welcome)
     if (welcome_open) {
         buffer_draw_rect_fill(21, 6, 40, 10, COLOR_BLACK); // Shadow
         buffer_draw_window(20, 5, 40, 10, "Welcome", COLOR_LIGHT_GRAY);
         uint8_t win_attr = (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK;
-        buffer_put_string(22, 7, "Welcome to IYKEOS v0.2", win_attr);
+        buffer_put_string(22, 7, "Welcome to IYKEOS v0.3", win_attr);
         buffer_put_string(22, 9, "A simple, powerful OS.", win_attr);
         buffer_put_string(22, 11, "Explore the menu above.", win_attr);
         
@@ -709,26 +735,17 @@ void draw_gui(int mx, int my, int menu_open, int programs_menu_open, int welcome
         attr = hover ? ((COLOR_RED << 4) | COLOR_WHITE) : ((COLOR_LIGHT_GRAY << 4) | COLOR_RED);
         buffer_put_string(wx + ww - 4, wy, "[X]", attr);
         
-        // Content
-        if (app_window_open == APP_FILES) {
-            // Content area inside window
-            draw_files_app(wx + 1, wy + 2, ww - 2, wh - 3, mx, my, scroll_offset);
-        } else if (app_window_open == APP_CALC) {
+        // Content - Updated app list
+        if (app_window_open == APP_CALC) {
             draw_calc_app(wx + 20, wy + 2, 40, 18, mx, my, calc_buffer);
         } else if (app_window_open == APP_NOTES) {
             draw_notes_app(wx + 1, wy + 2, ww - 2, wh - 3, mx, my, notes_buffer);
-        } else if (app_window_open == APP_WEB) {
-            draw_web_app(wx + 1, wy + 2, ww - 2, wh - 3, mx, my);
         } else if (app_window_open == APP_EDIT) {
             draw_edit_app(wx + 1, wy + 2, ww - 2, wh - 3, mx, my, edit_buffer, edit_filename);
-        } else if (app_window_open == APP_CONFIG) {
-            draw_config_app(wx + 1, wy + 2, ww - 2, wh - 3, mx, my);
-        } else if (app_window_open == APP_MUSIC) {
-            draw_music_app(wx + 1, wy + 2, ww - 2, wh - 3, mx, my);
-        } else if (app_window_open == APP_VIDEO) {
-            draw_video_app(wx + 1, wy + 2, ww - 2, wh - 3, mx, my);
-        } else if (app_window_open == APP_HELP) {
-            draw_help_app(wx + 1, wy + 2, ww - 2, wh - 3, mx, my);
+        } else if (app_window_open == APP_CLOCK) {
+            draw_clock_app(wx + 1, wy + 2, ww - 2, wh - 3, mx, my);
+        } else if (app_window_open == APP_RUNNER) {
+            draw_runner_app(wx + 1, wy + 2, ww - 2, wh - 3, mx, my, runner_files, runner_file_count, runner_scroll, runner_selected);
         } else {
             uint8_t content_attr = (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK;
             buffer_put_string(wx + 2, wy + 2, "Running: ", content_attr);
@@ -800,16 +817,16 @@ void draw_gui(int mx, int my, int menu_open, int programs_menu_open, int welcome
         buffer_put_string(1, 20, "Shutdown", attr);
     }
     
-    // Programs Submenu (if open)
+    // Programs Submenu (if open) - Updated list
     if (programs_menu_open) {
         int pm_x = 15;
         int pm_y = 14;
         int pm_w = 20;
-        int pm_h = 13;
+        int pm_h = 10; // Reduced from 13 to 10 (7 items)
         buffer_draw_window(pm_x, pm_y, pm_w, pm_h, "Programs", COLOR_LIGHT_GRAY);
         uint8_t pm_attr = (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK;
         
-        // List all programs at y=16, 17, 18, 19, 20, 21, 22, 23, 24, 25
+        // List all programs - Updated to 7 items
         attr = (is_hover(mx, my, pm_x + 1, pm_y + 2, pm_w - 2, 1)) ? ((COLOR_BLUE << 4) | COLOR_WHITE) : pm_attr;
         buffer_put_string(pm_x + 1, pm_y + 2, "Shell", attr);
         
@@ -817,28 +834,19 @@ void draw_gui(int mx, int my, int menu_open, int programs_menu_open, int welcome
         buffer_put_string(pm_x + 1, pm_y + 3, "Files", attr);
         
         attr = (is_hover(mx, my, pm_x + 1, pm_y + 4, pm_w - 2, 1)) ? ((COLOR_BLUE << 4) | COLOR_WHITE) : pm_attr;
-        buffer_put_string(pm_x + 1, pm_y + 4, "Web", attr);
+        buffer_put_string(pm_x + 1, pm_y + 4, "Runner", attr);
         
         attr = (is_hover(mx, my, pm_x + 1, pm_y + 5, pm_w - 2, 1)) ? ((COLOR_BLUE << 4) | COLOR_WHITE) : pm_attr;
         buffer_put_string(pm_x + 1, pm_y + 5, "Edit", attr);
         
         attr = (is_hover(mx, my, pm_x + 1, pm_y + 6, pm_w - 2, 1)) ? ((COLOR_BLUE << 4) | COLOR_WHITE) : pm_attr;
-        buffer_put_string(pm_x + 1, pm_y + 6, "Config", attr);
+        buffer_put_string(pm_x + 1, pm_y + 6, "Clock", attr);
         
         attr = (is_hover(mx, my, pm_x + 1, pm_y + 7, pm_w - 2, 1)) ? ((COLOR_BLUE << 4) | COLOR_WHITE) : pm_attr;
-        buffer_put_string(pm_x + 1, pm_y + 7, "Music", attr);
+        buffer_put_string(pm_x + 1, pm_y + 7, "Calc", attr);
         
         attr = (is_hover(mx, my, pm_x + 1, pm_y + 8, pm_w - 2, 1)) ? ((COLOR_BLUE << 4) | COLOR_WHITE) : pm_attr;
-        buffer_put_string(pm_x + 1, pm_y + 8, "Video", attr);
-        
-        attr = (is_hover(mx, my, pm_x + 1, pm_y + 9, pm_w - 2, 1)) ? ((COLOR_BLUE << 4) | COLOR_WHITE) : pm_attr;
-        buffer_put_string(pm_x + 1, pm_y + 9, "Calc", attr);
-        
-        attr = (is_hover(mx, my, pm_x + 1, pm_y + 10, pm_w - 2, 1)) ? ((COLOR_BLUE << 4) | COLOR_WHITE) : pm_attr;
-        buffer_put_string(pm_x + 1, pm_y + 10, "Notes", attr);
-        
-        attr = (is_hover(mx, my, pm_x + 1, pm_y + 11, pm_w - 2, 1)) ? ((COLOR_BLUE << 4) | COLOR_WHITE) : pm_attr;
-        buffer_put_string(pm_x + 1, pm_y + 11, "Help", attr);
+        buffer_put_string(pm_x + 1, pm_y + 8, "Notes", attr);
     }
 }
 
@@ -848,6 +856,7 @@ void window() {
     os_api->graphics_loading_screen();
     os_api->mouse_init();
     os_api->keyboard_init(); 
+
     
  
     int mx = 40, my = 12;
@@ -857,35 +866,40 @@ void window() {
     int app_window_open = 0;
     char app_window_title[32] = "";
     
-    int files_scroll = 0;
     int input_mode = 0; // 0=none, 1=file, 2=dir
     char input_buffer[32] = "";
     int input_len = 0;
-    
+
     // Calculator State
     char calc_buffer[16] = "0";
     int calc_op = 0;
     int calc_acc = 0;
     int calc_new_num = 1;
-    
+
     // Notes State
     static char notes_buffer[1024]; // 1KB buffer for notes
     notes_buffer[0] = 0;
     int notes_len = 0;
-    
+
     // Edit State
     static char edit_buffer[4096];
     static char edit_filename[12];
     edit_buffer[0] = 0;
     edit_filename[0] = 0;
     int edit_len = 0;
-    
+
+    // NEW: Runner State
+    fat16_dir_entry runner_files[64];
+    int runner_file_count = 0;
+    int runner_scroll = 0;
+    int runner_selected = -1;
+
     while (1) {
         // 1. Clear Buffer
         buffer_clear(COLOR_BLUE);
-        
+
         // 2. Draw GUI to Buffer
-        draw_gui(mx, my, menu_open, programs_menu_open, welcome_open, app_window_open, app_window_title, files_scroll, input_mode, input_buffer, calc_buffer, notes_buffer, edit_buffer, edit_filename);
+        draw_gui(mx, my, menu_open, programs_menu_open, welcome_open, app_window_open, app_window_title, input_mode, input_buffer, calc_buffer, notes_buffer, edit_buffer, edit_filename, runner_files, runner_file_count, runner_scroll, runner_selected);
         
         // 3. Update Clock to Buffer
         uint8_t h, m, s;
@@ -899,18 +913,22 @@ void window() {
         time_str[5] = 0;
         buffer_put_string(70, 24, time_str, (COLOR_LIGHT_GRAY << 4) | COLOR_BLACK);
 
+        
+
         // 4. Draw Mouse to Buffer
         uint16_t mouse_char = 30; // Up Arrow
         if (mx >= 0 && mx < 80 && my >= 0 && my < 25) {
              gui_buffer[my * 80 + mx] = mouse_char | (COLOR_RED << 12) | (COLOR_WHITE << 8);
         }
 
-        // // 5. Present (Flip) Buffer to Screen
+        // 5. Present (Flip) Buffer to Screen
         buffer_present();
 
-        // // 6. Input Handling
         
-        // // Mouse Input
+
+        // 6. Input Handling
+        
+        // Mouse Input
         int left_click = 0;
         int right_click = 0;
         // Poll mouse multiple times per frame to catch movement
@@ -918,7 +936,7 @@ void window() {
         
         char c =os_api->keyboard_getchar();
         
-        // // Combine mouse click with keyboard 'click'
+        // Combine mouse click with keyboard 'click'
         if (left_click) {
             c = '\n'; // Treat left click as Enter/Select
             // Debounce simple
@@ -929,7 +947,7 @@ void window() {
             continue;
         }
         
-        // // Input Mode Handling
+        // Input Mode Handling
         if (input_mode) {
             if (c == '\n') {
                 // Create
@@ -969,9 +987,7 @@ void window() {
             continue; // Skip other input
         }
         
-        if (input_mode) {
-             // ... (existing input mode logic)
-        } else if (app_window_open == APP_NOTES) {
+        if (app_window_open == APP_NOTES) {
              // Notes Input
              if (c == '\b') {
                  if (notes_len > 0) {
@@ -1031,29 +1047,10 @@ void window() {
             // App Window Close Click (Top Right)
             if (app_window_open && is_hover(mx, my, 76, 1, 3, 1)) {
                 app_window_open = APP_NONE;
-                files_scroll = 0; // Reset scroll
             }
             
             // App Content Click
-            if (app_window_open == APP_FILES) {
-                // Match the coordinates used in draw_gui
-                int action = handle_files_click(1, 3, 78, 20, mx, my, files_scroll);
-                if (action == 1) {
-                    files_scroll = 0; // Reset scroll on dir change
-                } else if (action == 2) { // New File
-                    input_mode = 1;
-                    input_len = 0;
-                    input_buffer[0] = 0;
-                } else if (action == 3) { // New Dir
-                    input_mode = 2;
-                    input_len = 0;
-                    input_buffer[0] = 0;
-                } else if (action == 4) { // Scroll Up
-                    if (files_scroll > 0) files_scroll--;
-                } else if (action == 5) { // Scroll Down
-                    files_scroll++;
-                }
-            } else if (app_window_open == APP_CALC) {
+            if (app_window_open == APP_CALC) {
                 handle_calc_click(20, 3, 40, 18, mx, my, calc_buffer, &calc_op, &calc_acc, &calc_new_num);
             } else if (app_window_open == APP_NOTES) {
                 handle_notes_click(1, 3, 78, 20, mx, my, notes_buffer);
@@ -1079,28 +1076,75 @@ void window() {
                         os_api->fat16_file_save(edit_filename, (uint8_t*)edit_buffer, edit_len);
                     }
                 }
+            } else if (app_window_open == APP_RUNNER) {
+                int action = handle_runner_click(1, 3, 78, 20, mx, my, runner_files, runner_file_count, runner_scroll);
+                if (action == -1) { // Run button clicked
+                    if (runner_selected >= 0 && runner_selected < runner_file_count) {
+                        char* ext = (char*)runner_files[runner_selected].ext;
+                        int is_bin = (ext[0]=='B' && ext[1]=='I' && ext[2]=='N');
+                        int is_ike = (ext[0]=='I' && ext[1]=='K' && ext[2]=='E');
+                        
+                        if (is_bin || is_ike) {
+                            // Build full filename
+                            char fullname[13];
+                            os_api->memcpy(fullname, runner_files[runner_selected].name, 8);
+                            int k = 7;
+                            while(k>=0 && fullname[k]==' ') fullname[k--]=0;
+                            int len = os_api->strlen(fullname);
+                            fullname[len] = '.';
+                            fullname[len+1] = ext[0];
+                            fullname[len+2] = ext[1];
+                            fullname[len+3] = ext[2];
+                            fullname[len+4] = 0;
+                            
+                            // Run the file
+                            os_api->run(fullname);
+                        }
+                        // For .bas and .bgs, do nothing (placeholder)
+                    }
+                } else if (action == -2) { // Refresh button clicked
+                    // Refresh runner files - inline code
+                    {
+                        fat16_dir_entry all_files[512];
+                        int total = os_api->fat16_list_root(all_files, 512);
+                        runner_file_count = 0;
+                        for (int i = 0; i < total && runner_file_count < 64; i++) {
+                            if (all_files[i].name[0] == 0) continue;
+                            if ((uint8_t)all_files[i].name[0] == 0xE5) continue;
+                            char* ext = (char*)all_files[i].ext;
+                            int is_bin = (ext[0]=='B' && ext[1]=='I' && ext[2]=='N');
+                            int is_ike = (ext[0]=='I' && ext[1]=='K' && ext[2]=='E');
+                            int is_bas = (ext[0]=='B' && ext[1]=='A' && ext[2]=='S');
+                            int is_bgs = (ext[0]=='B' && ext[1]=='G' && ext[2]=='S');
+                            if (is_bin || is_ike || is_bas || is_bgs) {
+                                os_api->memcpy(&runner_files[runner_file_count], &all_files[i], sizeof(fat16_dir_entry));
+                                runner_file_count++;
+                            }
+                        }
+                    }
+                    runner_scroll = 0;
+                    runner_selected = -1;
+                } else if (action > 0) { // File selected
+                    runner_selected = action - 1;
+                }
             }
 
             // Icon Clicks - ONLY if no app window is open
             if (!app_window_open) {
                 // Column 1
                 if (is_hover(mx, my, 2, 3, 6, 2)) { 
-                    
                    os_api->start_shell();
                 }
-                if (is_hover(mx, my, 2, 8, 6, 2)) { app_window_open = APP_FILES; os_api->strcpy(app_window_title, "Files"); }
-                if (is_hover(mx, my, 2, 13, 6, 2)) { app_window_open = APP_WEB; os_api->strcpy(app_window_title, "Web"); }
+                if (is_hover(mx, my, 2, 8, 6, 2)) { os_api->run_with_status("FILES.BIN"); }
+                if (is_hover(mx, my, 2, 13, 6, 2)) { 
+                   os_api->run_with_status("RUNNER.BIN");
+                }
                 if (is_hover(mx, my, 2, 18, 6, 2)) { app_window_open = APP_EDIT; os_api->strcpy(app_window_title, "Edit"); }
                 
                 // Column 2
-                if (is_hover(mx, my, 12, 3, 6, 2)) { app_window_open = APP_CONFIG; os_api->strcpy(app_window_title, "Config"); }
-                if (is_hover(mx, my, 12, 8, 6, 2)) { app_window_open = APP_MUSIC; os_api->strcpy(app_window_title, "Music"); }
-                if (is_hover(mx, my, 12, 13, 6, 2)) { app_window_open = APP_VIDEO;os_api-> strcpy(app_window_title, "Video"); }
-                if (is_hover(mx, my, 12, 18, 6, 2)) { app_window_open = APP_CALC; os_api->strcpy(app_window_title, "Calc"); }
-                
-                // Column 3
-                if (is_hover(mx, my, 22, 3, 6, 2)) { app_window_open = APP_NOTES;os_api->strcpy(app_window_title, "Notes"); }
-                if (is_hover(mx, my, 22, 8, 6, 2)) { app_window_open = APP_HELP; os_api->strcpy(app_window_title, "Help"); }
+                if (is_hover(mx, my, 12, 3, 6, 2)) { app_window_open = APP_CLOCK; os_api->strcpy(app_window_title, "Clock"); }
+                if (is_hover(mx, my, 12, 8, 6, 2)) { app_window_open = APP_CALC; os_api->strcpy(app_window_title, "Calc"); }
+                if (is_hover(mx, my, 12, 13, 6, 2)) { app_window_open = APP_NOTES; os_api->strcpy(app_window_title, "Notes"); }
             }
             
             // Programs Menu Click - toggle submenu
@@ -1118,7 +1162,7 @@ void window() {
                 break;
             }
             
-            // Programs Submenu Clicks
+            // Programs Submenu Clicks - Updated list
             if (programs_menu_open) {
                 int pm_x = 15;
                 int pm_y = 14;
@@ -1131,15 +1175,14 @@ void window() {
                 }
                 // Files
                 else if (is_hover(mx, my, pm_x + 1, pm_y + 3, 18, 1)) {
-                    app_window_open = APP_FILES;
-                    os_api->strcpy(app_window_title, "Files");
+                    os_api->run_with_status("FILES.BIN");
                     programs_menu_open = 0;
                     menu_open = 0;
+                    start();
                 }
-                // Web
+                // Runner
                 else if (is_hover(mx, my, pm_x + 1, pm_y + 4, 18, 1)) {
-                    app_window_open = APP_WEB;
-                    os_api->strcpy(app_window_title, "Web");
+                    os_api->run_with_status("RUNNER.BIN");
                     programs_menu_open = 0;
                     menu_open = 0;
                 }
@@ -1150,45 +1193,24 @@ void window() {
                     programs_menu_open = 0;
                     menu_open = 0;
                 }
-                // Config
+                // Clock
                 else if (is_hover(mx, my, pm_x + 1, pm_y + 6, 18, 1)) {
-                    app_window_open = APP_CONFIG;
-                    os_api->strcpy(app_window_title, "Config");
-                    programs_menu_open = 0;
-                    menu_open = 0;
-                }
-                // Music
-                else if (is_hover(mx, my, pm_x + 1, pm_y + 7, 18, 1)) {
-                    app_window_open = APP_MUSIC;
-                    os_api->strcpy(app_window_title, "Music");
-                    programs_menu_open = 0;
-                    menu_open = 0;
-                }
-                // Video
-                else if (is_hover(mx, my, pm_x + 1, pm_y + 8, 18, 1)) {
-                    app_window_open = APP_VIDEO;
-                    os_api->strcpy(app_window_title, "Video");
+                    app_window_open = APP_CLOCK;
+                    os_api->strcpy(app_window_title, "Clock");
                     programs_menu_open = 0;
                     menu_open = 0;
                 }
                 // Calc
-                else if (is_hover(mx, my, pm_x + 1, pm_y + 9, 18, 1)) {
+                else if (is_hover(mx, my, pm_x + 1, pm_y + 7, 18, 1)) {
                     app_window_open = APP_CALC;
                     os_api->strcpy(app_window_title, "Calc");
                     programs_menu_open = 0;
                     menu_open = 0;
                 }
                 // Notes
-                else if (is_hover(mx, my, pm_x + 1, pm_y + 10, 18, 1)) {
+                else if (is_hover(mx, my, pm_x + 1, pm_y + 8, 18, 1)) {
                     app_window_open = APP_NOTES;
                     os_api->strcpy(app_window_title, "Notes");
-                    programs_menu_open = 0;
-                    menu_open = 0;
-                }
-                // Help
-                else if (is_hover(mx, my, pm_x + 1, pm_y + 11, 18, 1)) {
-                    app_window_open = APP_HELP;
-                    os_api->strcpy(app_window_title, "Help");
                     programs_menu_open = 0;
                     menu_open = 0;
                 }

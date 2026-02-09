@@ -93,6 +93,8 @@ sudo cp ./build/pong.bin "$MNT_POINT/PONG.BIN"
 sudo cp ./build/breakout.bin "$MNT_POINT/BREAKOUT.BIN"
 sudo cp ./build/snake2.bin "$MNT_POINT/SNAKE2.BIN"
 sudo cp ./build/spaceinvaders.bin "$MNT_POINT/SPACEINV.BIN"
+sudo cp ./build/files.bin "$MNT_POINT/FILES.BIN"
+sudo cp ./build/runner.bin "$MNT_POINT/RUNNER.BIN"
 
 if [ -d "./assets/txt" ]; then
     for file in ./assets/txt/*.txt; do

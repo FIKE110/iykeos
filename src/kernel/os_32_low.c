@@ -11,6 +11,8 @@ void start_shell();
 void disable_cursor();
 void enable_cursor();
 
+
+
 static inline void outb(uint16_t port, uint8_t val) {
     __asm__ volatile ("outb %0, %1" : : "a"(val), "Nd"(port));
 }
@@ -161,6 +163,7 @@ static uint8_t shell_color = 0x0F;
 #define COLOR_YELLOW        0xE
 #define COLOR_WHITE         0xF
 
+
 void screen_print_shell(const char* str);
 void enable_cursor();
 void screen_clear_shell();
@@ -253,8 +256,11 @@ typedef struct {
     void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
     void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
     void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
+    int (*run_with_status)(char* filename);
+    uint32_t (*fat16_file_size)(char* filename);
 
 } os_api_t;
+
 
 
 static uint32_t rng_state;
@@ -293,6 +299,8 @@ uint8_t g_320x200x256[] = {
     0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
     0x41, 0x00, 0x0F, 0x00, 0x00
 };
+
+
 
 uint8_t g_80x25_text[] = {
     0x67,
@@ -476,8 +484,6 @@ os_api_t* os_api;
 
 static uint8_t prompt_row = 0;
 static uint8_t prompt_col = 0;
-static uint8_t temp_prompt_row = 0;
-static uint8_t temp_prompt_col = 0;
 #define INPUT_BUFFER_SIZE 128
 static char input_buffer[INPUT_BUFFER_SIZE];
 static int input_length = 0;
@@ -863,6 +869,42 @@ void run(char* filename){
 
 }
 
+
+int run_with_status(char* filename){
+        const char* ext = ".BIN";
+        int filename_len = strlen(filename);
+        int ext_len = strlen(ext);
+
+        screen_print_shell("running program");
+        if (filename_len > ext_len && strcmp(filename + filename_len - ext_len, ext) == 0) {
+            uint8_t* pointer = (uint8_t*) 0xD00000;
+            uint32_t max_size = 65536;
+            uint32_t file_size = fat16_file_size(filename);
+
+            if (file_size == 0) {
+                return -1;
+            } else if (file_size > max_size) {
+                return -1;
+            } else {
+                int res = fat16_file_load(filename, pointer);
+                if (res == 0) {
+                    keyboard_init();  // Reset keyboard before running program
+                    entry_t entry = (entry_t) pointer;
+                    entry();
+                    return 0;
+                } else {
+                    return -1;
+                }
+            }
+
+        } else {
+            return -1;
+        }
+
+        return 0;
+
+}
+
 void split_args(const char* cmd, char* arg1, char* arg2) {
     while (*cmd && *cmd != ' ') cmd++;
     while (*cmd == ' ') cmd++;
@@ -903,8 +945,7 @@ void handle_command(const char* cmd) {
         run("GUI.BIN");
     }
     else if(starts_with(cmd,"edit ")){
-        uint32_t text_address= 0xB00000;
-        const char* filename = cmd + 5;
+        char* filename = (char*)(cmd + 5);
         uint8_t* pointer=(uint8_t*) 0xD00000;
         uint32_t max_size=65536;
         uint32_t file_size=fat16_file_size("EDITOR.ike");
@@ -943,8 +984,7 @@ void handle_command(const char* cmd) {
     }
 
      else if(starts_with(cmd,"basic ")){
-        uint32_t text_address= 0xB00000;
-        char* filename = cmd + 6;
+        char* filename = (char*)(cmd + 6);
         uint8_t* pointer=(uint8_t*) 0xD00000;
         uint32_t max_size=65536;
         uint32_t file_size=fat16_file_size("BASIC.ike");
@@ -1235,11 +1275,7 @@ void handle_command(const char* cmd) {
     }
      else if(starts_with(cmd,"run ")){
         const char* filename = cmd + 4;
-        const char* ext = ".BIN";
-        int filename_len = strlen(filename);
-        int ext_len = strlen(ext);
-
-           run(filename);
+        run((char*)filename);
 
     }
     else {
@@ -1489,6 +1525,7 @@ void init_api(){
     os_api->graphics_put_string=&put_string;
     os_api->graphics_put_pixel=&putpixel;
     os_api->int_to_str=&int_to_str;
+    os_api->memcmp=&memcmp;
     os_api->vgraphics_init = &vgraphics_init;
     os_api->vgraphics_clear = &vgraphics_clear;
     os_api->vgraphics_repaint = &vgraphics_repaint;
@@ -1497,13 +1534,15 @@ void init_api(){
     os_api->vgraphics_draw_box = &vgraphics_draw_box;
     os_api->vgraphics_draw_window = &vgraphics_draw_window;
     os_api->vgraphics_draw_rect_fill = &vgraphics_draw_rect_fill;
+    os_api->run_with_status=&run_with_status;
+    os_api->fat16_file_size=&fat16_file_size;
 }
 
 void start_shell(){
     mouse_wait(1);
     outb(0x64, 0x20);
     mouse_wait(0);
-    uint8_t status = (inb_s(0x60) | 2);
+    (void)inb_s(0x60);  // Read and discard status
     mouse_wait(1);
     outb(0x64, 0xA7);
 

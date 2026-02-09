@@ -26,6 +26,7 @@ void vgraphics_put_char(int x, int y, char c, uint8_t color) {
     virtual_buffer[y * VSCREEN_WIDTH + x] = (color << 8) | (uint8_t)c;
 }
 
+
 // Put string at position
 void vgraphics_put_string(int x, int y, const char* str, uint8_t color) {
     int i = 0;
@@ -58,9 +59,10 @@ void vgraphics_draw_box(int x, int y, int w, int h, uint8_t color) {
 
 // Draw filled rectangle
 void vgraphics_draw_rect_fill(int x, int y, int w, int h, uint8_t color) {
+
     for (int row = y; row < y + h && row < VSCREEN_HEIGHT; row++) {
         for (int col = x; col < x + w && col < VSCREEN_WIDTH; col++) {
-            vgraphics_put_char(col, row, ' ', color);
+            vgraphics_put_char(col, row, ' ', (color << 4) | 0x0F);
         }
     }
 }
