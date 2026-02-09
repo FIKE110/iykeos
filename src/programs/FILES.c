@@ -122,8 +122,8 @@
 #define ATTR_STATUS      ATTR(STATUS_FG, STATUS_BG)
 
 /* Keys */
-#define KEY_UP          0x48
-#define KEY_DOWN        0x50
+#define KEY_UP          0x11
+#define KEY_DOWN        0x12
 #define KEY_LEFT        0x4B
 #define KEY_RIGHT       0x4D
 #define KEY_ENTER       0x1C
@@ -884,6 +884,8 @@ int main(void) {
     
     os_api->enable_cursor();
     os_api->vgraphics_clear(COLOR_BLACK);
+
+    os_api->fat16_chdir("/");
     
     return 0;
 }
