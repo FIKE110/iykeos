@@ -148,7 +148,7 @@ os_api_t* os_api;
 
 // Ball structure
 typedef struct {
-    int x, y;           // Position in screen coordinates
+    int x, y;           // FPosition in screen coordinates
     int dx, dy;         // Velocity (-1, 0, or 1 for each axis)
     bool active;        // Is ball in play?
 } Ball;
@@ -516,14 +516,14 @@ void handle_input(char c) {
         case 'W':
         case 0x11: // KEY_UP
             if (game.left_paddle_y > GAME_Y + 1) {
-                game.left_paddle_y--;
+                game.left_paddle_y -= 3;
             }
             break;
         case 's':
         case 'S':
         case 0x12: // KEY_DOWN
             if (game.left_paddle_y < GAME_Y + GAME_HEIGHT - PADDLE_HEIGHT - 2) {
-                game.left_paddle_y++;
+                game.left_paddle_y += 3;
             }
             break;
     }
@@ -547,8 +547,8 @@ void game_loop() {
     os_api->vgraphics_repaint();  // Show static elements
     
     while (playing) {
-        // Clear ONLY the play area (not borders)
-        clear_play_area();
+        // Clear the entire screen
+        os_api->vgraphics_clear(COLOR_BLACK);
         
         // Handle input
         char c = os_api->keyboard_getchar();
@@ -585,7 +585,9 @@ void game_loop() {
             update_ball();
         }
         
-        // Draw dynamic elements
+        // Draw all elements (borders now cleared each frame)
+        draw_bounds();
+        draw_controls();
         draw_left_paddle();
         draw_right_paddle();
         draw_ball();
