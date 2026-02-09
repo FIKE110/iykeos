@@ -68,7 +68,6 @@ typedef struct {
     uint32_t size;        // File size in bytes
 } __attribute__((packed)) fat16_dir_entry;
 
-
 typedef struct {
     void (*print_shell)(const char*);
     void (*print_shellc)(char);
@@ -140,10 +139,10 @@ typedef struct {
     void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
     void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
     void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
-    int (*run_with_status)(char* filename);
+    int (*run_with_status)(char* filename,uint32_t address);
+    uint32_t (*fat16_file_size)(char* filename);
 
 } os_api_t;
-
 
 
 os_api_t* os_api;
@@ -1135,9 +1134,9 @@ void window() {
                 if (is_hover(mx, my, 2, 3, 6, 2)) { 
                    os_api->start_shell();
                 }
-                if (is_hover(mx, my, 2, 8, 6, 2)) { os_api->run_with_status("FILES.BIN"); }
+                if (is_hover(mx, my, 2, 8, 6, 2)) { os_api->run_with_status("FILES.BIN",0); }
                 if (is_hover(mx, my, 2, 13, 6, 2)) { 
-                   os_api->run_with_status("RUNNER.BIN");
+                   os_api->run_with_status("RUNNER.BIN",0);
                 }
                 if (is_hover(mx, my, 2, 18, 6, 2)) { app_window_open = APP_EDIT; os_api->strcpy(app_window_title, "Edit"); }
                 
@@ -1175,14 +1174,14 @@ void window() {
                 }
                 // Files
                 else if (is_hover(mx, my, pm_x + 1, pm_y + 3, 18, 1)) {
-                    os_api->run_with_status("FILES.BIN");
+                    os_api->run_with_status("FILES.BIN",0);
                     programs_menu_open = 0;
                     menu_open = 0;
                     start();
                 }
                 // Runner
                 else if (is_hover(mx, my, pm_x + 1, pm_y + 4, 18, 1)) {
-                    os_api->run_with_status("RUNNER.BIN");
+                    os_api->run_with_status("RUNNER.BIN",0);
                     programs_menu_open = 0;
                     menu_open = 0;
                 }

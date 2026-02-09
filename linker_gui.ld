@@ -1,7 +1,8 @@
 ENTRY(_start)
 
 SECTIONS {
-  . = 0xD00000;     /* Start at 13MB — match the OS loader */
+  . =  0x01000000 ; 
+    /* Start at 13MB — match the OS loader */
 
   .text : {
     *(.text*)
@@ -20,4 +21,3 @@ SECTIONS {
     *(COMMON)
   }
 }
-

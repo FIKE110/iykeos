@@ -21,6 +21,8 @@ NASM_BIN  := -f bin
 LDFLAGS  := -m elf_i386 -T linker.ld
 LDFLAGS2 := -m elf_i386 -T linker2.ld
 LDFLAGS3 := -m elf_i386 -T linker_os.ld
+LDFLAGS4 := -m elf_i386 -T linker_gui.ld
+LDFLAGS5 := -m elf_i386 -T linker_game.ld
 
 LIB_SRCS := $(LIB_DIR)/memory_os.c $(LIB_DIR)/disk.c $(LIB_DIR)/print.c \
             $(LIB_DIR)/file.c $(LIB_DIR)/strings.c $(LIB_DIR)/keyboard.c \
@@ -168,15 +170,15 @@ $(BUILD_DIR)/basic.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/basic_low.o
 
 $(BUILD_DIR)/gui.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/gui.o
 	@echo "  LD      gui.elf"
-	@$(LD) $(LDFLAGS2) $^ -o $@
+	@$(LD) $(LDFLAGS4) $^ -o $@
 
 $(BUILD_DIR)/gui2.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/gui2.o
 	@echo "  LD      gui2.elf"
-	@$(LD) $(LDFLAGS2) $^ -o $@
+	@$(LD) $(LDFLAGS4) $^ -o $@
 
 $(BUILD_DIR)/game.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/game_low.o
 	@echo "  LD      game.elf"
-	@$(LD) $(LDFLAGS2) $^ -o $@
+	@$(LD) $(LDFLAGS5) $^ -o $@
 
 $(BUILD_DIR)/snake.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/snake.o
 	@echo "  LD      snake.elf"

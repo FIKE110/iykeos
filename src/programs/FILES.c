@@ -224,9 +224,11 @@ typedef struct {
     void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
     void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
     void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
-    int (*run_with_status)(char* filename);
-    uint32_t (*fat16_file_size)(const char* filename);
+    int (*run_with_status)(char* filename,uint32_t address);
+    uint32_t (*fat16_file_size)(char* filename);
+
 } os_api_t;
+
 
 /* ============================================================================
  * GLOBAL STATE

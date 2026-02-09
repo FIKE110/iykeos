@@ -256,7 +256,7 @@ typedef struct {
     void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
     void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
     void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
-    int (*run_with_status)(char* filename);
+    int (*run_with_status)(char* filename,uint32_t address);
     uint32_t (*fat16_file_size)(char* filename);
 
 } os_api_t;
@@ -870,14 +870,19 @@ void run(char* filename){
 }
 
 
-int run_with_status(char* filename){
+int run_with_status(char* filename,uint32_t address){
         const char* ext = ".BIN";
         int filename_len = strlen(filename);
         int ext_len = strlen(ext);
 
+
+        if(address==0){
+            address=0xD00000;
+        }
+
         screen_print_shell("running program");
         if (filename_len > ext_len && strcmp(filename + filename_len - ext_len, ext) == 0) {
-            uint8_t* pointer = (uint8_t*) 0xD00000;
+            uint8_t* pointer = (uint8_t*) address;
             uint32_t max_size = 65536;
             uint32_t file_size = fat16_file_size(filename);
 
@@ -942,7 +947,10 @@ void handle_command(const char* cmd) {
     }
 
     else if (strcmp(cmd, "window") == 0) {
-        run("GUI.BIN");
+        run_with_status("GUI.BIN", 0x01000000);
+    }
+    else if (strcmp(cmd, "games") == 0) {
+        run_with_status("GAME.BIN", 0x01200000);
     }
     else if(starts_with(cmd,"edit ")){
         char* filename = (char*)(cmd + 5);
@@ -1566,10 +1574,11 @@ void os_main(void){
         start_shell();
     }
     else if(selection == 1){
-        run("GUI.BIN");
+        run_with_status("GUI.BIN", 0x01000000);
     }
     else if(selection == 2){
-        run("GAME.BIN");
+        run_with_status("GAME.BIN", 0x01200000);
+        start_shell();
     }
 
     while (1) __asm__ __volatile__("hlt");
