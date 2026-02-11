@@ -156,6 +156,10 @@ $(BUILD_DIR)/runner.o: $(PROGS_DIR)/RUNNER.c
 	@echo "  CC      $<"
 	@$(CC) $(CFLAGS) -c $< -o $@
 
+$(BUILD_DIR)/edit.o: $(PROGS_DIR)/EDIT.c
+	@echo "  CC      $<"
+	@$(CC) $(CFLAGS) -c $< -o $@
+
 $(BUILD_DIR)/hello.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/hello_world_low.o
 	@echo "  LD      hello.elf"
 	@$(LD) $(LDFLAGS2) $^ -o $@
@@ -210,6 +214,10 @@ $(BUILD_DIR)/files.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/files.o
 
 $(BUILD_DIR)/runner.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/runner.o
 	@echo "  LD      runner.elf"
+	@$(LD) $(LDFLAGS5) $^ -o $@
+
+$(BUILD_DIR)/edit.elf: $(BUILD_DIR)/code_entry.o $(BUILD_DIR)/edit.o
+	@echo "  LD      edit.elf"
 	@$(LD) $(LDFLAGS2) $^ -o $@
 
 $(BUILD_DIR)/%.bin: $(BUILD_DIR)/%.elf
@@ -220,7 +228,7 @@ build-os: build-kernel $(BUILD_DIR)/os.bin
 	@echo "OS binary build complete"
 
 build-programs: build-os $(BUILD_DIR)/code_entry.o
-	@$(MAKE) $(BUILD_DIR)/hello.bin $(BUILD_DIR)/editor.bin $(BUILD_DIR)/basic.bin $(BUILD_DIR)/gui.bin $(BUILD_DIR)/gui2.bin $(BUILD_DIR)/game.bin $(BUILD_DIR)/snake.bin $(BUILD_DIR)/tetris.bin $(BUILD_DIR)/pong.bin $(BUILD_DIR)/breakout.bin $(BUILD_DIR)/snake2.bin $(BUILD_DIR)/spaceinvaders.bin $(BUILD_DIR)/files.bin $(BUILD_DIR)/runner.bin
+	@$(MAKE) $(BUILD_DIR)/hello.bin $(BUILD_DIR)/editor.bin $(BUILD_DIR)/basic.bin $(BUILD_DIR)/gui.bin $(BUILD_DIR)/gui2.bin $(BUILD_DIR)/game.bin $(BUILD_DIR)/snake.bin $(BUILD_DIR)/tetris.bin $(BUILD_DIR)/pong.bin $(BUILD_DIR)/breakout.bin $(BUILD_DIR)/snake2.bin $(BUILD_DIR)/spaceinvaders.bin $(BUILD_DIR)/files.bin $(BUILD_DIR)/runner.bin $(BUILD_DIR)/edit.bin
 
 test-os-build: build-programs $(BOOT_BIN) $(STAGE2_BIN) $(KERNEL_BIN)
 	@bash ./build-hdd.sh

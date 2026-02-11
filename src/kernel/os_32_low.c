@@ -258,6 +258,7 @@ typedef struct {
     void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
     int (*run_with_status)(char* filename,uint32_t address);
     uint32_t (*fat16_file_size)(char* filename);
+    int (*str_to_int)(const char *s);
 
 } os_api_t;
 
@@ -949,6 +950,18 @@ void handle_command(const char* cmd) {
     else if (strcmp(cmd, "window") == 0) {
         run_with_status("GUI.BIN", 0x01000000);
     }
+     else if (starts_with(cmd, "random")) {
+        char* number = (char*)(cmd + 7);
+        int rand=str_to_int(number);
+        if(rand==0){
+            rand=10;
+        }
+        uint32_t r=get_random(rand);
+        char c[10];
+        int_to_str(r,c);
+        screen_print_shell(c);
+        screen_putc_shell('\n');
+    }
     else if (strcmp(cmd, "games") == 0) {
         run_with_status("GAME.BIN", 0x01200000);
     }
@@ -1544,6 +1557,7 @@ void init_api(){
     os_api->vgraphics_draw_rect_fill = &vgraphics_draw_rect_fill;
     os_api->run_with_status=&run_with_status;
     os_api->fat16_file_size=&fat16_file_size;
+    os_api->str_to_int=&str_to_int;
 }
 
 void start_shell(){

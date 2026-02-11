@@ -126,7 +126,14 @@ typedef struct {
     void (*vgraphics_put_char)(int x, int y, char c, uint8_t color);
     void (*vgraphics_put_string)(int x, int y, const char* str, uint8_t color);
     void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
+    void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
+    void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
+    int (*run_with_status)(char* filename,uint32_t address);
+    uint32_t (*fat16_file_size)(char* filename);
+    int (*str_to_int)(const char *s);
+
 } os_api_t;
+
 
 os_api_t* os_api;
 
@@ -412,7 +419,13 @@ void alien_drop_bomb() {
     }
 }
 
+int bullet_timer = 0;
+
 void update_bullets() {
+    bullet_timer++;
+    if (bullet_timer < 2) return;
+    bullet_timer = 0;
+    
     for (int i = 0; i < MAX_BULLETS; i++) {
         if (bullets[i].active) {
             bullets[i].y--;
@@ -441,7 +454,13 @@ void update_bullets() {
     }
 }
 
+int bomb_timer = 0;
+
 void update_bombs() {
+    bomb_timer++;
+    if (bomb_timer < 5) return;
+    bomb_timer = 0;
+    
     for (int i = 0; i < MAX_BOMBS; i++) {
         if (bombs[i].active) {
             bombs[i].y++;
@@ -604,6 +623,9 @@ void show_title_screen() {
         int x = (SCREEN_WIDTH - len) / 2;
         os_api->vgraphics_put_string(x, inst_y + i, instructions[i], text_color);
     }
+
+
+    os_api->vgraphics_repaint();
     
     while (1) {
         char key = os_api->keyboard_getchar();
@@ -642,9 +664,9 @@ void game_loop() {
                 if (key == 'q' || key == 'Q' || key == 0x1B) {
                     playing = false;
                     break;
-                } else if (key == 'a' || key == 'A' || key == 0x4B) {
+                } else if (key == 'a' || key == 'A' || key == 0x13) {
                     move_player(-1);
-                } else if (key == 'd' || key == 'D' || key == 0x4D) {
+                } else if (key == 'd' || key == 'D' || key == 0x14) {
                     move_player(1);
                 } else if (key == ' ') {
                     fire_bullet();
@@ -672,6 +694,7 @@ void game_loop() {
         
         save_high_score();
         draw_game_over();
+        os_api->vgraphics_repaint();
         
         bool waiting = true;
         while (waiting) {

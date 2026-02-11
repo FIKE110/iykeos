@@ -14,19 +14,19 @@ int game_speed = 1000;
 // Game bounds
 #define GAME_X 2
 #define GAME_Y 2
-#define GAME_WIDTH 60
+#define GAME_WIDTH 32
 #define GAME_HEIGHT 22
 
 // Preview box (for next piece)
-#define PREVIEW_X 65
+#define PREVIEW_X 45
 #define PREVIEW_Y 4
 #define PREVIEW_WIDTH 12
 #define PREVIEW_HEIGHT 8
 
 // Board dimensions (10 columns x 20 rows)
-#define BOARD_WIDTH 10
+#define BOARD_WIDTH 15
 #define BOARD_HEIGHT 20
-#define BOARD_OFFSET_X 12
+#define BOARD_OFFSET_X 3
 #define BOARD_OFFSET_Y 3
 
 // Colors
@@ -88,7 +88,6 @@ typedef struct {
     uint32_t size;
 } __attribute__((packed)) fat16_dir_entry;
 
-// OS API structure
 typedef struct {
     void (*print_shell)(const char*);
     void (*print_shellc)(char);
@@ -158,8 +157,13 @@ typedef struct {
     void (*vgraphics_put_char)(int x, int y, char c, uint8_t color);
     void (*vgraphics_put_string)(int x, int y, const char* str, uint8_t color);
     void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
+    void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
+    void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
+    int (*run_with_status)(char* filename,uint32_t address);
+    uint32_t (*fat16_file_size)(char* filename);
 
 } os_api_t;
+
 
 os_api_t* os_api;
 
@@ -247,45 +251,61 @@ void init_api() {
 // Parse number from string until delimiter
 int parse_number(const char* str, int* pos, char delimiter) {
     int num = 0;
+    // Skip any leading delimiters first
+    while (str[*pos] == delimiter) {
+        (*pos)++;
+    }
+    // Now parse the number
     while (str[*pos] >= '0' && str[*pos] <= '9') {
         num = num * 10 + (str[*pos] - '0');
         (*pos)++;
     }
+    // Skip trailing delimiter
     if (str[*pos] == delimiter) {
         (*pos)++;
     }
     return num;
 }
 
+
+
 // Load high scores from GAMES.TXT
 void load_all_high_scores(int* scores, int num_games) {
     uint8_t buffer[64];
     
+    // Check if file exists
     if (!os_api->fat16_file_exists("GAMES.TXT")) {
+        // Create file with default values: |0|0|0|0|0|0|
         const char* default_scores = "|0|0|0|0|0|0|";
         os_api->fat16_create_file("GAMES.TXT", 0);
         os_api->fat16_file_save("GAMES.TXT", (uint8_t*)default_scores, 14);
         
+        // Initialize all scores to 0
         for (int i = 0; i < num_games; i++) {
             scores[i] = 0;
         }
         return;
     }
     
+    // Load existing file
     int size = os_api->fat16_file_load("GAMES.TXT", buffer);
     if (size <= 0) {
+        
+
         for (int i = 0; i < num_games; i++) {
             scores[i] = 0;
         }
         return;
     }
     
+    // Parse scores
     buffer[size] = '\0';
     int pos = 0;
     for (int i = 0; i < num_games && pos < size; i++) {
         scores[i] = parse_number((char*)buffer, &pos, '|');
     }
 }
+
 
 // Save high scores to GAMES.TXT
 void save_all_high_scores(int* scores, int num_games) {
@@ -325,7 +345,6 @@ void save_high_score() {
     
     if (game.score > scores[1]) {
         scores[1] = game.score;
-        high_score = game.score;
         save_all_high_scores(scores, 6);
     }
 }
@@ -463,18 +482,14 @@ int clear_lines() {
 
 // Update score based on lines cleared
 void update_score(int lines) {
-    // Scoring: 100/300/500/800 for 1/2/3/4 lines
-    int points = 0;
-    switch (lines) {
-        case 1: points = 100; break;
-        case 2: points = 300; break;
-        case 3: points = 500; break;
-        case 4: points = 800; break;
-        default: points = 0; break;
-    }
-    
-    game.score += points;
+    // Score: 1 point per line cleared
+    game.score += lines;
     game.lines_cleared += lines;
+    
+    // Update high score in real-time if current score exceeds it
+    if (game.score > high_score) {
+        high_score = game.score;
+    }
     
     // Speed progression: get faster every 10 lines
     int speed_level = game.lines_cleared / 10;
@@ -604,40 +619,40 @@ void draw_controls() {
 // Draw game over screen
 void draw_game_over() {
     // Draw box in center of board
-    int box_x = BOARD_OFFSET_X + 8;
+    int box_x = BOARD_OFFSET_X + 3;
     int box_y = BOARD_OFFSET_Y + 6;
 
+    os_api->vgraphics_draw_rect_fill(box_x, box_y, 24, 8, VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
     os_api->vgraphics_draw_box(box_x, box_y, 24, 8, VGA_COLOR(COLOR_RED, COLOR_BLACK));
 
     // Title
     os_api->vgraphics_put_string(box_x + 6, box_y + 1, "GAME OVER",
-                                 VGA_COLOR(COLOR_LRED, COLOR_BLACK));
+                                 VGA_COLOR(COLOR_LRED, COLOR_WHITE));
 
     // Final score
     char score_str[20];
     os_api->int_to_str(game.score, score_str);
     os_api->vgraphics_put_string(box_x + 2, box_y + 3, "Score: ",
-                                 VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
+                                 VGA_COLOR( COLOR_BLACK,COLOR_WHITE));
     os_api->vgraphics_put_string(box_x + 9, box_y + 3, score_str,
-                                 VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
+                                 VGA_COLOR( COLOR_BLACK,COLOR_WHITE));
 
     // High score
     os_api->int_to_str(high_score, score_str);
     os_api->vgraphics_put_string(box_x + 2, box_y + 5, "High: ",
-                                 VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
+                                 VGA_COLOR( COLOR_BLACK,COLOR_WHITE));
     os_api->vgraphics_put_string(box_x + 8, box_y + 5, score_str,
-                                 VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
+                                 VGA_COLOR(COLOR_BLUE, COLOR_WHITE));
 
     // Instructions
     os_api->vgraphics_put_string(box_x + 2, box_y + 6, "R: Restart  Q: Quit",
-                                 VGA_COLOR(COLOR_LGRAY, COLOR_BLACK));
+                                 VGA_COLOR(COLOR_DGRAY, COLOR_WHITE));
 }
 
 // Hard drop - move piece to bottom instantly
 void hard_drop() {
     while (can_move(game.current_piece, game.current_rotation, game.current_x, game.current_y + 1)) {
         game.current_y++;
-        game.score += 2;  // Bonus for hard drop
     }
 }
 
@@ -710,7 +725,6 @@ void game_loop() {
             case 0x12: // KEY_DOWN - soft drop
                 if (can_move(game.current_piece, game.current_rotation, game.current_x, game.current_y + 1)) {
                     game.current_y++;
-                    game.score += 1;
                 }
                 break;
             case 0x13: // KEY_LEFT - move left
@@ -751,7 +765,7 @@ void game_loop() {
         draw_score();
 
         os_api->vgraphics_repaint();
-        // Frame delay
+
         for (volatile int d = 0; d < 10000; d++);
 
         // Check for game over
@@ -762,6 +776,7 @@ void game_loop() {
             // Draw final state
             draw_board();
             draw_game_over();
+            os_api->vgraphics_repaint();
 
             // Wait for R (restart) or Q (quit)
             while (1) {

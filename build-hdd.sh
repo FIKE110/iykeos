@@ -95,6 +95,7 @@ sudo cp ./build/snake2.bin "$MNT_POINT/SNAKE2.BIN"
 sudo cp ./build/spaceinvaders.bin "$MNT_POINT/SPACEINV.BIN"
 sudo cp ./build/files.bin "$MNT_POINT/FILES.BIN"
 sudo cp ./build/runner.bin "$MNT_POINT/RUNNER.BIN"
+sudo cp ./build/edit.bin "$MNT_POINT/EDIT.BIN"
 
 if [ -d "./assets/txt" ]; then
     for file in ./assets/txt/*.txt; do
@@ -104,6 +105,8 @@ if [ -d "./assets/txt" ]; then
     done
 fi
 
-sudo cp $IMG_FILE "./web/assets/${IMG_NAME}"
-
 echo "--- Build successful: $IMG_FILE ---"
+
+echo "Copying harddisk image to web/assets..."
+cp "$IMG_FILE" "./web/assets/$IMG_NAME"
+echo "Copied to web/assets/$IMG_NAME"

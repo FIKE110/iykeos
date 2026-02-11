@@ -18,10 +18,12 @@
 #define APP_HEIGHT  20
 
 /* Toolbar button positions */
-#define BTN_REFRESH_X   0
-#define BTN_REFRESH_W   9
-#define BTN_RUN_X       11
-#define BTN_RUN_W       7
+#define BTN_BACK_X      0
+#define BTN_BACK_W      6
+#define BTN_NEW_FILE_X  7
+#define BTN_NEW_FILE_W  10
+#define BTN_NEW_DIR_X   18
+#define BTN_NEW_DIR_W   9
 #define BTN_SCROLL_UP_X(APP_W)  ((APP_W) - 6)
 #define BTN_SCROLL_UP_W         3
 #define BTN_SCROLL_DOWN_X(APP_W) ((APP_W) - 3)
@@ -32,10 +34,15 @@
 #define FILE_START_ROW  2
 #define MAX_VISIBLE_FILES(APP_H) ((APP_H) - 3)
 
+/* Modal dimensions */
+#define MODAL_WIDTH     30
+#define MODAL_HEIGHT    8
+
 /* Input limits */
+#define MAX_INPUT_LEN   12
 #define MAX_FILENAME    32
 
-/* Colors - Modern Green Theme */
+/* Colors - Modern Blue Theme */
 #define COLOR_BLACK      0x0
 #define COLOR_BLUE       0x1
 #define COLOR_GREEN      0x2
@@ -56,29 +63,41 @@
 #define ATTR(fg, bg)     ((bg) << 4 | (fg))
 
 /* Desktop */
-#define DESKTOP_COLOR    COLOR_BLACK
+#define DESKTOP_COLOR    COLOR_BLUE
 
 /* Window chrome */
 #define WINDOW_BG        COLOR_WHITE
-#define WINDOW_BORDER    COLOR_GREEN
-#define TITLE_BAR_BG     COLOR_GREEN
+#define WINDOW_BORDER    COLOR_LBLUE
+#define TITLE_BAR_BG     COLOR_BLUE
 #define TITLE_BAR_FG     COLOR_WHITE
 
 /* Toolbar */
 #define TOOLBAR_BG       COLOR_LGRAY
 #define TOOLBAR_FG       COLOR_BLACK
-#define TOOLBAR_HOVER_BG COLOR_GREEN
+#define TOOLBAR_HOVER_BG COLOR_LBLUE
 #define TOOLBAR_HOVER_FG COLOR_WHITE
 
 /* File list */
 #define FILE_LIST_BG         COLOR_WHITE
 #define FILE_LIST_FG         COLOR_BLACK
-#define FILE_SELECTED_BG     COLOR_GREEN
+#define FILE_SELECTED_BG     COLOR_LBLUE
 #define FILE_SELECTED_FG     COLOR_WHITE
-#define FILE_HOVERED_BG      COLOR_LGREEN
+#define FILE_HOVERED_BG      COLOR_LCYAN
 #define FILE_HOVERED_FG      COLOR_BLACK
 #define FILE_HEADER_BG       COLOR_DGRAY
 #define FILE_HEADER_FG       COLOR_WHITE
+
+/* Directories vs Files */
+#define DIR_COLOR_FG     COLOR_LBLUE
+#define FILE_COLOR_FG    COLOR_BLACK
+
+/* Modal dialogs */
+#define MODAL_BG         COLOR_LGRAY
+#define MODAL_TITLE_BG   COLOR_BLUE
+#define MODAL_TITLE_FG   COLOR_WHITE
+#define MODAL_TEXT_FG    COLOR_BLACK
+#define INPUT_BG         COLOR_WHITE
+#define INPUT_FG         COLOR_BLACK
 
 /* Status bar */
 #define STATUS_BG        COLOR_DGRAY
@@ -96,25 +115,20 @@
 #define ATTR_TOOLBAR_HOV ATTR(TOOLBAR_HOVER_FG, TOOLBAR_HOVER_BG)
 #define ATTR_HEADER      ATTR(FILE_HEADER_FG, FILE_HEADER_BG)
 #define ATTR_TITLE       ATTR(TITLE_BAR_FG, TITLE_BAR_BG)
+#define ATTR_MODAL_TEXT  ATTR(MODAL_TEXT_FG, MODAL_BG)
+#define ATTR_INPUT       ATTR(INPUT_FG, INPUT_BG)
+#define ATTR_DIR         ATTR(DIR_COLOR_FG, FILE_LIST_BG)
+#define ATTR_DIR_SEL     ATTR(COLOR_WHITE, FILE_SELECTED_BG)
 #define ATTR_STATUS      ATTR(STATUS_FG, STATUS_BG)
 
-/* File type colors */
-#define ATTR_BIN         ATTR(COLOR_GREEN, FILE_LIST_BG)
-#define ATTR_BIN_SEL     ATTR(COLOR_WHITE, FILE_SELECTED_BG)
-#define ATTR_BAS         ATTR(COLOR_CYAN, FILE_LIST_BG)
-#define ATTR_BAS_SEL     ATTR(COLOR_WHITE, FILE_SELECTED_BG)
-#define ATTR_IKE         ATTR(COLOR_LBLUE, FILE_LIST_BG)
-#define ATTR_IKE_SEL     ATTR(COLOR_WHITE, FILE_SELECTED_BG)
-#define ATTR_BGS         ATTR(COLOR_MAGENTA, FILE_LIST_BG)
-#define ATTR_BGS_SEL     ATTR(COLOR_WHITE, FILE_SELECTED_BG)
-
 /* Keys */
-#define KEY_UP          0x48
-#define KEY_DOWN        0x50
+#define KEY_UP          0x11
+#define KEY_DOWN        0x12
 #define KEY_LEFT        0x4B
 #define KEY_RIGHT       0x4D
 #define KEY_ENTER       0x1C
 #define KEY_ESC         0x01
+#define KEY_BACKSPACE   0x0E
 
 /* Mouse */
 #define MOUSE_CHAR      30
@@ -124,16 +138,20 @@
 #define CLOSE_BTN_X(APP_X, APP_W)  ((APP_X) + (APP_W) - 4)
 #define CLOSE_BTN_Y(APP_Y)         ((APP_Y) - 1)
 
-/* Supported extensions */
-#define EXT_BIN         0
-#define EXT_BAS         1
-#define EXT_IKE         2
-#define EXT_BGS         3
-#define EXT_UNKNOWN     4
-
 /* ============================================================================
  * TYPES
  * ============================================================================ */
+
+typedef struct {
+    char name[8];
+    char ext[3];
+    uint8_t attr;
+    uint8_t reserved[10];
+    uint16_t time;
+    uint16_t date;
+    uint16_t first_cluster;
+    uint32_t size;
+} __attribute__((packed)) fat16_dir_entry;
 
 typedef struct {
     void (*print_shell)(const char*);
@@ -188,6 +206,7 @@ typedef struct {
     int (*fat16_delete_file)(const char* filename);
     int (*fat16_chdir)(const char* dirname);
     int (*fat16_rmdir)(const char* dirname);
+    int (*fat16_list_root)(fat16_dir_entry* entries, int max_entries);
     void (*start_shell)();
     void (*graphics_loading_screen)();
     void (*graphics_clear_screen_g)(uint8_t color);
@@ -205,9 +224,11 @@ typedef struct {
     void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
     void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
     void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
-    int (*run_with_status)(char* filename);
-    uint32_t (*fat16_file_size)(const char* filename);
+    int (*run_with_status)(char* filename,uint32_t address);
+    uint32_t (*fat16_file_size)(char* filename);
+
 } os_api_t;
+
 
 /* ============================================================================
  * GLOBAL STATE
@@ -217,21 +238,20 @@ os_api_t* os_api;
 
 /* File manager state */
 static char file_list_str[2048];
-static char filtered_list[1024];
 static int file_count = 0;
 static int scroll_offset = 0;
 static int selected_file = -1;
+static char current_path[256] = "/";
 
 /* Mouse position */
 static int mouse_x = 40, mouse_y = 12;
 
 /* Keyboard navigation focus state */
 static int keyboard_mode = 0; /* 0=mouse, 1=keyboard nav */
-static int focus_index = 0;   /* 0=close btn, 1=refresh, 2=run, 3+=file list */
+static int focus_index = 0;   /* 0=close btn, 1=back, 2+=file list */
 #define FOCUS_CLOSE_BTN   0
-#define FOCUS_REFRESH     1
-#define FOCUS_RUN         2
-#define FOCUS_FILE_START  3
+#define FOCUS_BACK_BTN    1
+#define FOCUS_FILE_START  2
 
 /* ============================================================================
  * UTILITY FUNCTIONS
@@ -241,68 +261,92 @@ static int is_hover(int mx, int my, int x, int y, int w, int h) {
     return (mx >= x && mx < x + w && my >= y && my < y + h);
 }
 
-static int str_ends_with(const char* str, const char* suffix) {
-    int str_len = os_api->strlen(str);
-    int suffix_len = os_api->strlen(suffix);
-    if (str_len < suffix_len) return 0;
-    return os_api->memcmp(str + str_len - suffix_len, suffix, suffix_len) == 0;
-}
-
-static int get_file_extension_type(const char* filename) {
-    if (str_ends_with(filename, ".bin")) return EXT_BIN;
-    if (str_ends_with(filename, ".BIN")) return EXT_BIN;
-    if (str_ends_with(filename, ".bas")) return EXT_BAS;
-    if (str_ends_with(filename, ".BAS")) return EXT_BAS;
-    if (str_ends_with(filename, ".ike")) return EXT_IKE;
-    if (str_ends_with(filename, ".IKE")) return EXT_IKE;
-    if (str_ends_with(filename, ".bgs")) return EXT_BGS;
-    if (str_ends_with(filename, ".BGS")) return EXT_BGS;
-    return EXT_UNKNOWN;
-}
-
-static const char* get_extension_name(int ext_type) {
-    switch (ext_type) {
-        case EXT_BIN: return "BIN";
-        case EXT_BAS: return "BAS";
-        case EXT_IKE: return "IKE";
-        case EXT_BGS: return "BGS";
-        default: return "???";
+/* Check if filename has an allowed extension (.bin, .bas, .ike, .bgs) */
+static int has_allowed_extension(const char* filename) {
+    int len = 0;
+    while (filename[len] && filename[len] != '|') {
+        len++;
     }
+    
+    /* Need at least 4 chars for extension (e.g., ".bin") */
+    if (len < 4) return 0;
+    
+    /* Check last 4 characters */
+    const char* ext = filename + len - 4;
+    
+    /* Check for .bin, .bas, .ike, .bgs */
+    if ((ext[0] == '.' && ext[1] == 'B' && ext[2] == 'I' && ext[3] == 'N') ||
+        (ext[0] == '.' && ext[1] == 'B' && ext[2] == 'A' && ext[3] == 'A') ||
+        (ext[0] == '.' && ext[1] == 'I' && ext[2] == 'K' && ext[3] == 'E') ||
+        (ext[0] == '.' && ext[1] == 'B' && ext[2] == 'G' && ext[3] == 'S')) {
+        return 1;
+    }
+    
+    return 0;
 }
 
+/* Check if entry is a directory (ends with '/') or is . or .. */
+static int is_directory_or_special(const char* filename) {
+    int len = 0;
+    while (filename[len] && filename[len] != '|') {
+        len++;
+    }
+    
+    /* Check for . or .. */
+    if (len == 1 && filename[0] == '.') return 1;
+    if (len == 2 && filename[0] == '.' && filename[1] == '.') return 1;
+    
+    /* Check if ends with / (directory marker) */
+    if (len > 0 && filename[len - 1] == '/') return 1;
+    
+    return 0;
+}
+
+/* Filter file list to only include files with allowed extensions */
 static void filter_file_list(void) {
+    char filtered_list[2048];
+    int filtered_idx = 0;
+    int filtered_count = 0;
     int src_idx = 0;
-    int dst_idx = 0;
-    filtered_list[0] = '\0';
-    file_count = 0;
     
     while (file_list_str[src_idx]) {
-        /* Extract filename */
+        /* Extract one filename */
         char filename[MAX_FILENAME];
-        int buf_idx = 0;
-        while (file_list_str[src_idx] && file_list_str[src_idx] != '|' && buf_idx < MAX_FILENAME - 1) {
-            filename[buf_idx++] = file_list_str[src_idx++];
-        }
-        filename[buf_idx] = '\0';
+        int fname_idx = 0;
         
-        /* Check if it's a supported file type */
-        if (get_file_extension_type(filename) != EXT_UNKNOWN) {
+        while (file_list_str[src_idx] && file_list_str[src_idx] != '|' && fname_idx < MAX_FILENAME - 1) {
+            filename[fname_idx++] = file_list_str[src_idx++];
+        }
+        filename[fname_idx] = '\0';
+        
+        /* Keep directories, ., .., and files with allowed extensions */
+        if (is_directory_or_special(filename) || has_allowed_extension(filename)) {
             /* Add to filtered list */
-            if (dst_idx > 0) {
-                filtered_list[dst_idx++] = '|';
+            int j = 0;
+            while (filename[j]) {
+                filtered_list[filtered_idx++] = filename[j++];
             }
-            int i = 0;
-            while (filename[i]) {
-                filtered_list[dst_idx++] = filename[i++];
-            }
-            file_count++;
+            filtered_list[filtered_idx++] = '|';
+            filtered_count++;
         }
         
         /* Skip separator */
-        if (file_list_str[src_idx] == '|') src_idx++;
+        if (file_list_str[src_idx] == '|') {
+            src_idx++;
+        }
     }
     
-    filtered_list[dst_idx] = '\0';
+    /* Null terminate and copy back */
+    filtered_list[filtered_idx] = '\0';
+    
+    int i = 0;
+    while (filtered_list[i]) {
+        file_list_str[i] = filtered_list[i];
+        i++;
+    }
+    file_list_str[i] = '\0';
+    
+    file_count = filtered_count;
 }
 
 static void refresh_file_list(void) {
@@ -319,29 +363,23 @@ static void refresh_file_list(void) {
  * DRAWING HELPERS
  * ============================================================================ */
 
+static void draw_toolbar_button(int x, int y, int w, const char* label, 
+                                 int mx, int my, int is_hovered) {
+    uint8_t attr = is_hovered ? ATTR_TOOLBAR_HOV : ATTR_TOOLBAR;
+    os_api->vgraphics_put_string(x, y, label, attr);
+}
+
 static void draw_file_row(int x, int y, int w, const char* filename, 
-                           uint32_t size, int ext_type, int is_selected, int is_hovered) {
+                           uint32_t size, int is_dir, int is_selected, int is_hovered) {
     uint8_t attr;
     
-    /* Determine attribute based on state and file type */
+    /* Determine attribute based on state and type */
     if (is_selected) {
-        switch (ext_type) {
-            case EXT_BIN: attr = ATTR_BIN_SEL; break;
-            case EXT_BAS: attr = ATTR_BAS_SEL; break;
-            case EXT_IKE: attr = ATTR_IKE_SEL; break;
-            case EXT_BGS: attr = ATTR_BGS_SEL; break;
-            default: attr = ATTR_SELECTED; break;
-        }
+        attr = is_dir ? ATTR_DIR_SEL : ATTR_SELECTED;
     } else if (is_hovered) {
         attr = ATTR_HOVERED;
     } else {
-        switch (ext_type) {
-            case EXT_BIN: attr = ATTR_BIN; break;
-            case EXT_BAS: attr = ATTR_BAS; break;
-            case EXT_IKE: attr = ATTR_IKE; break;
-            case EXT_BGS: attr = ATTR_BGS; break;
-            default: attr = ATTR_NORMAL; break;
-        }
+        attr = is_dir ? ATTR_DIR : ATTR_NORMAL;
     }
     
     /* Clear row background */
@@ -349,19 +387,27 @@ static void draw_file_row(int x, int y, int w, const char* filename,
         os_api->vgraphics_put_char(x + i, y, ' ', attr);
     }
     
-    /* Filename */
-    os_api->vgraphics_put_string(x + 1, y, filename, attr);
+    /* Filename with type indicator */
+    if (is_dir) {
+        /* Show folder icon prefix for directories */
+        char display_name[MAX_FILENAME + 4];
+        os_api->strcpy(display_name, "[+] ");
+        os_api->strcat(display_name, filename);
+        os_api->vgraphics_put_string(x + 1, y, display_name, attr);
+    } else {
+        os_api->vgraphics_put_string(x + 1, y, filename, attr);
+    }
     
-    /* Extension type */
-    os_api->vgraphics_put_string(x + 30, y, get_extension_name(ext_type), attr);
-    
-    /* Size */
-    if (size > 0) {
+    /* Size or <DIR> indicator */
+    if (is_dir) {
+        os_api->vgraphics_put_string(x + 28, y, "<DIR>", attr);
+    } else if (size > 0) {
         char size_buf[12];
         os_api->int_to_str(size, size_buf);
+        /* Right-align size */
         int len = os_api->strlen(size_buf);
-        os_api->vgraphics_put_string(x + 36, y, size_buf, attr);
-        os_api->vgraphics_put_string(x + 37 + len, y, "bytes", attr);
+        os_api->vgraphics_put_string(x + 32 - len, y, size_buf, attr);
+        os_api->vgraphics_put_string(x + 33, y, "bytes", attr);
     }
 }
 
@@ -373,35 +419,36 @@ static void draw_toolbar(int x, int y, int w, int mx, int my) {
     /* Background */
     os_api->vgraphics_draw_rect_fill(x, y, w, 1, TOOLBAR_BG);
     
-    /* Refresh button - keyboard focus support */
-    int hover_refresh = is_hover(mx, my, x + BTN_REFRESH_X, y, BTN_REFRESH_W, 1);
-    int focus_refresh = (keyboard_mode && focus_index == FOCUS_REFRESH);
-    uint8_t refresh_attr = (hover_refresh || focus_refresh) ? ATTR_TOOLBAR_HOV : ATTR_TOOLBAR;
-    os_api->vgraphics_put_string(x + BTN_REFRESH_X, y, "[Refresh]", refresh_attr);
+    /* Draw separator line */
+    for (int i = 0; i < w; i++) {
+        os_api->vgraphics_put_char(x + i, y + 1, 0xC4, ATTR(COLOR_DGRAY, TOOLBAR_BG));
+    }
     
-    /* Run button - keyboard focus support */
-    int hover_run = is_hover(mx, my, x + BTN_RUN_X, y, BTN_RUN_W, 1);
-    int focus_run = (keyboard_mode && focus_index == FOCUS_RUN);
-    uint8_t run_attr = (hover_run || focus_run) ? ATTR_TOOLBAR_HOV : ATTR_TOOLBAR;
-    os_api->vgraphics_put_string(x + BTN_RUN_X, y, "[Run]", run_attr);
+    /* Back button - keyboard focus support */
+    int hover_back = is_hover(mx, my, x + BTN_BACK_X, y, BTN_BACK_W, 1);
+    int focus_back = (keyboard_mode && focus_index == FOCUS_BACK_BTN);
+    uint8_t back_attr = (hover_back || focus_back) ? ATTR_TOOLBAR_HOV : ATTR_TOOLBAR;
+    os_api->vgraphics_put_string(x + BTN_BACK_X, y, "<Back ", back_attr);
     
     /* Separator */
-    os_api->vgraphics_put_char(x + BTN_RUN_X + BTN_RUN_W + 1, y, '|', ATTR(COLOR_DGRAY, TOOLBAR_BG));
+    os_api->vgraphics_put_char(x + BTN_BACK_X + BTN_BACK_W + 1, y, '|', ATTR(COLOR_DGRAY, TOOLBAR_BG));
     
-    /* Supported types display */
-    os_api->vgraphics_put_string(x + BTN_RUN_X + BTN_RUN_W + 3, y, 
-                                  "Supported: .bin .bas .ike .bgs", ATTR_TOOLBAR);
+    /* Path display - show current directory */
+    char path_display[50];
+    os_api->strcpy(path_display, " Path: ");
+    os_api->strcat(path_display, current_path);
+    os_api->vgraphics_put_string(x + BTN_BACK_X + BTN_BACK_W + 3, y, path_display, ATTR_TOOLBAR);
     
     /* Scroll buttons - right aligned */
     int scroll_up_x = BTN_SCROLL_UP_X(w);
     int hover_up = is_hover(mx, my, x + scroll_up_x, y, BTN_SCROLL_UP_W, 1);
     uint8_t up_attr = hover_up ? ATTR(COLOR_WHITE, SCROLL_FG) : ATTR(SCROLL_FG, SCROLL_BG);
-    os_api->vgraphics_put_string(x + scroll_up_x, y, " /\ ", up_attr);
+    os_api->vgraphics_put_string(x + scroll_up_x, y, " /\\ ", up_attr);
     
     int scroll_down_x = BTN_SCROLL_DOWN_X(w);
     int hover_dn = is_hover(mx, my, x + scroll_down_x, y, BTN_SCROLL_DOWN_W, 1);
     uint8_t dn_attr = hover_dn ? ATTR(COLOR_WHITE, SCROLL_FG) : ATTR(SCROLL_FG, SCROLL_BG);
-    os_api->vgraphics_put_string(x + scroll_down_x, y, " \/ ", dn_attr);
+    os_api->vgraphics_put_string(x + scroll_down_x, y, " \\/ ", dn_attr);
 }
 
 static void draw_header(int x, int y, int w) {
@@ -409,15 +456,15 @@ static void draw_header(int x, int y, int w) {
     os_api->vgraphics_draw_rect_fill(x, y, w, 1, FILE_HEADER_BG);
     
     /* Column headers */
-    os_api->vgraphics_put_string(x + 1, y, " Name                       ", ATTR_HEADER);
-    os_api->vgraphics_put_string(x + 30, y, "Type", ATTR_HEADER);
-    os_api->vgraphics_put_string(x + 36, y, "Size", ATTR_HEADER);
+    os_api->vgraphics_put_string(x + 1, y, " Name                  ", ATTR_HEADER);
+    os_api->vgraphics_put_string(x + 28, y, "Type", ATTR_HEADER);
+    os_api->vgraphics_put_string(x + 35, y, "Size", ATTR_HEADER);
     
     /* File count - right aligned */
     char count_str[16];
     os_api->int_to_str(file_count, count_str);
     char count_display[24];
-    os_api->strcpy(count_display, "Files: ");
+    os_api->strcpy(count_display, "Items: ");
     os_api->strcat(count_display, count_str);
     int count_x = x + w - os_api->strlen(count_display) - 2;
     os_api->vgraphics_put_string(count_x, y, count_display, ATTR_HEADER);
@@ -431,21 +478,21 @@ static void parse_and_draw_files(int x, int y, int w, int h, int mx, int my) {
     
     /* Skip scrolled files */
     int skip_count = 0;
-    while (skip_count < scroll_offset && filtered_list[current_idx]) {
-        if (filtered_list[current_idx] == '|') skip_count++;
+    while (skip_count < scroll_offset && file_list_str[current_idx]) {
+        if (file_list_str[current_idx] == '|') skip_count++;
         current_idx++;
     }
     file_idx = skip_count;
     
     /* Display files */
-    while (filtered_list[current_idx] && row < max_visible && file_idx < file_count) {
+    while (file_list_str[current_idx] && row < max_visible && file_idx < file_count) {
         int item_y = y + FILE_START_ROW + row;
         
         /* Extract filename */
         char filename_buf[MAX_FILENAME];
         int buf_idx = 0;
-        while (filtered_list[current_idx] && filtered_list[current_idx] != '|' && buf_idx < MAX_FILENAME - 1) {
-            filename_buf[buf_idx++] = filtered_list[current_idx++];
+        while (file_list_str[current_idx] && file_list_str[current_idx] != '|' && buf_idx < MAX_FILENAME - 1) {
+            filename_buf[buf_idx++] = file_list_str[current_idx++];
         }
         filename_buf[buf_idx] = '\0';
         
@@ -453,22 +500,31 @@ static void parse_and_draw_files(int x, int y, int w, int h, int mx, int my) {
         int is_selected = (file_idx == selected_file);
         int is_kb_focused = (keyboard_mode && focus_index == FOCUS_FILE_START + file_idx);
         int is_hovered = is_kb_focused || is_hover(mx, my, x, item_y, w, 1);
-        int ext_type = get_file_extension_type(filename_buf);
+        int is_dir = (buf_idx > 0 && filename_buf[buf_idx - 1] == '/');
         
-        /* Get size */
-        uint32_t size = os_api->fat16_file_size(filename_buf);
+        /* Remove trailing / for directories */
+        if (is_dir) {
+            filename_buf[buf_idx - 1] = '\0';
+        }
         
-        draw_file_row(x, item_y, w, filename_buf, size, ext_type, is_selected, is_hovered);
+        /* Get size (only for files) */
+        uint32_t size = 0;
+        if (!is_dir) {
+            size = os_api->fat16_file_size(filename_buf);
+        }
+
+        
+        draw_file_row(x, item_y, w, filename_buf, size, is_dir, is_selected, is_hovered);
         
         /* Skip separator */
-        if (filtered_list[current_idx] == '|') current_idx++;
+        if (file_list_str[current_idx] == '|') current_idx++;
         
         file_idx++;
         row++;
     }
 }
 
-static void draw_runner_app(int x, int y, int w, int h, int mx, int my) {
+static void draw_files_app(int x, int y, int w, int h, int mx, int my) {
     /* Background - fill entire window area */
     os_api->vgraphics_draw_rect_fill(x, y, w, h, WINDOW_BG);
     
@@ -481,60 +537,74 @@ static void draw_runner_app(int x, int y, int w, int h, int mx, int my) {
     int status_y = y + h - 1;
     os_api->vgraphics_draw_rect_fill(x, status_y, w, 1, STATUS_BG);
     if (keyboard_mode) {
-        os_api->vgraphics_put_string(x + 1, status_y, "[Up/Down] Navigate  [Enter] Run  [Q]uit", ATTR_STATUS);
+        os_api->vgraphics_put_string(x + 1, status_y, "[Up/Down] Navigate  [Enter] Select  [Q]uit", ATTR_STATUS);
     } else {
         os_api->vgraphics_put_string(x + 1, status_y, "[Up/Down] Navigate  [Q]uit  [Click] Mouse", ATTR_STATUS);
     }
 }
 
 /* ============================================================================
- * FILE OPERATIONS
- * ============================================================================ */
-
-static void run_selected_file(void) {
-    if (selected_file < 0 || selected_file >= file_count) return;
-    
-    /* Find the selected file in the filtered list */
-    int file_idx = 0;
-    int current_idx = 0;
-    while (file_idx < selected_file && filtered_list[current_idx]) {
-        if (filtered_list[current_idx] == '|') file_idx++;
-        current_idx++;
-    }
-    
-    /* Extract filename */
-    char filename_buf[MAX_FILENAME];
-    int buf_idx = 0;
-    while (filtered_list[current_idx] && filtered_list[current_idx] != '|' && buf_idx < MAX_FILENAME - 1) {
-        filename_buf[buf_idx++] = filtered_list[current_idx++];
-    }
-    filename_buf[buf_idx] = '\0';
-    
-    /* Run the file */
-    os_api->run(filename_buf);
-}
-
-/* ============================================================================
  * INPUT HANDLING
  * ============================================================================ */
 
+/* Update current_path when changing directories */
+static void update_path(const char* dir_name, int go_back) {
+    if (go_back) {
+        /* Go to parent directory */
+        int len = 0;
+        while (current_path[len]) len++;
+        
+        /* Remove trailing slash if present */
+        if (len > 1 && current_path[len - 1] == '/') {
+            current_path[len - 1] = '\0';
+            len--;
+        }
+        
+        /* Find last slash and truncate */
+        while (len > 0 && current_path[len - 1] != '/') {
+            len--;
+        }
+        
+        if (len == 0) {
+            current_path[0] = '/';
+            current_path[1] = '\0';
+        } else if (len > 1) {
+            current_path[len] = '\0';
+        }
+    } else {
+        /* Enter subdirectory */
+        int len = 0;
+        while (current_path[len]) len++;
+        
+        /* Remove trailing slash if present for root */
+        if (len == 1 && current_path[0] == '/') {
+            current_path[0] = '\0';
+            len = 0;
+        }
+        
+        /* Append directory name */
+        int i = 0;
+        while (dir_name[i] && len < 254) {
+            current_path[len++] = dir_name[i++];
+        }
+        current_path[len++] = '/';
+        current_path[len] = '\0';
+    }
+}
+
 typedef enum {
     ACTION_NONE = 0,
-    ACTION_REFRESH,
-    ACTION_RUN,
+    ACTION_CHANGE_DIR,
     ACTION_SCROLL_UP,
     ACTION_SCROLL_DOWN,
-    ACTION_SELECT_FILE
+    ACTION_GO_BACK
 } action_t;
 
 static action_t handle_toolbar_click(int x, int y, int w, int mx, int my) {
     if (my != y) return ACTION_NONE;
     
-    if (is_hover(mx, my, x + BTN_REFRESH_X, y, BTN_REFRESH_W, 1)) {
-        return ACTION_REFRESH;
-    }
-    if (is_hover(mx, my, x + BTN_RUN_X, y, BTN_RUN_W, 1)) {
-        return ACTION_RUN;
+    if (is_hover(mx, my, x + BTN_BACK_X, y, BTN_BACK_W, 1)) {
+        return ACTION_GO_BACK;
     }
     if (is_hover(mx, my, x + BTN_SCROLL_UP_X(w), y, BTN_SCROLL_UP_W, 1)) {
         return ACTION_SCROLL_UP;
@@ -554,24 +624,38 @@ static action_t handle_file_list_click(int x, int y, int w, int h, int mx, int m
     
     /* Skip scrolled files */
     int skip_count = 0;
-    while (skip_count < scroll_offset && filtered_list[current_idx]) {
-        if (filtered_list[current_idx] == '|') skip_count++;
+    while (skip_count < scroll_offset && file_list_str[current_idx]) {
+        if (file_list_str[current_idx] == '|') skip_count++;
         current_idx++;
     }
     file_idx = skip_count;
     
     /* Check each file */
-    while (filtered_list[current_idx] && row < max_visible && file_idx < file_count) {
+    while (file_list_str[current_idx] && row < max_visible && file_idx < file_count) {
         int item_y = y + FILE_START_ROW + row;
         
         if (is_hover(mx, my, x, item_y, w, 1)) {
-            selected_file = file_idx;
-            return ACTION_SELECT_FILE;
+            /* Extract filename */
+            char filename_buf[MAX_FILENAME];
+            int buf_idx = 0;
+            while (file_list_str[current_idx] && file_list_str[current_idx] != '|' && buf_idx < MAX_FILENAME - 1) {
+                filename_buf[buf_idx++] = file_list_str[current_idx++];
+            }
+            filename_buf[buf_idx] = '\0';
+            
+            /* Check if directory */
+            if (buf_idx > 0 && filename_buf[buf_idx - 1] == '/') {
+                filename_buf[buf_idx - 1] = '\0'; /* Remove trailing / */
+                os_api->fat16_chdir(filename_buf);
+                update_path(filename_buf, 0);  /* Update path display */
+                return ACTION_CHANGE_DIR;
+            }
+            return ACTION_NONE;
         }
         
         /* Skip to next file */
-        while (filtered_list[current_idx] && filtered_list[current_idx] != '|') current_idx++;
-        if (filtered_list[current_idx] == '|') current_idx++;
+        while (file_list_str[current_idx] && file_list_str[current_idx] != '|') current_idx++;
+        if (file_list_str[current_idx] == '|') current_idx++;
         
         file_idx++;
         row++;
@@ -580,7 +664,7 @@ static action_t handle_file_list_click(int x, int y, int w, int h, int mx, int m
     return ACTION_NONE;
 }
 
-static action_t handle_runner_click(int x, int y, int w, int h, int mx, int my) {
+static action_t handle_files_click(int x, int y, int w, int h, int mx, int my) {
     action_t action = handle_toolbar_click(x, y, w, mx, my);
     if (action != ACTION_NONE) return action;
     
@@ -589,24 +673,30 @@ static action_t handle_runner_click(int x, int y, int w, int h, int mx, int my) 
 
 static void process_action(action_t action) {
     switch (action) {
-        case ACTION_REFRESH:
+        case ACTION_CHANGE_DIR:
             refresh_file_list();
-            break;
-        case ACTION_RUN:
-            run_selected_file();
             break;
         case ACTION_SCROLL_UP:
             if (scroll_offset > 0) scroll_offset--;
             break;
         case ACTION_SCROLL_DOWN:
-            if (scroll_offset < file_count - 1) scroll_offset++;
+            scroll_offset++;
             break;
-        case ACTION_SELECT_FILE:
-            /* File was selected, ready to run */
+        case ACTION_GO_BACK:
+            os_api->fat16_chdir("..");
+            update_path(NULL, 1);
+            refresh_file_list();
             break;
         default:
             break;
     }
+}
+
+static void handle_mouse_movement(char c) {
+    if (c == KEY_UP && mouse_y > 0) mouse_y--;
+    if (c == KEY_DOWN && mouse_y < SCREEN_HEIGHT - 1) mouse_y++;
+    if (c == KEY_LEFT && mouse_x > 0) mouse_x--;
+    if (c == KEY_RIGHT && mouse_x < SCREEN_WIDTH - 1) mouse_x++;
 }
 
 static int get_max_focus(void) {
@@ -617,6 +707,14 @@ static void handle_keyboard_nav(char c) {
     int max_focus = get_max_focus();
     
     switch (c) {
+        case '\t': /* Tab - next focus */
+            keyboard_mode = 1;
+            focus_index++;
+            if (focus_index > max_focus) {
+                focus_index = FOCUS_CLOSE_BTN;
+            }
+            break;
+            
         case KEY_DOWN:
             keyboard_mode = 1;
             focus_index++;
@@ -626,7 +724,6 @@ static void handle_keyboard_nav(char c) {
             /* Auto-scroll if needed when in file list */
             if (focus_index >= FOCUS_FILE_START) {
                 int file_idx = focus_index - FOCUS_FILE_START;
-                selected_file = file_idx;
                 if (file_idx >= scroll_offset + MAX_VISIBLE_FILES(APP_HEIGHT)) {
                     scroll_offset++;
                 }
@@ -642,9 +739,53 @@ static void handle_keyboard_nav(char c) {
             /* Auto-scroll if needed when in file list */
             if (focus_index >= FOCUS_FILE_START) {
                 int file_idx = focus_index - FOCUS_FILE_START;
-                selected_file = file_idx;
                 if (file_idx < scroll_offset) {
                     scroll_offset = file_idx;
+                }
+            }
+            break;
+            
+        case ' ':
+        case '\n':
+        case KEY_ENTER:
+            /* Activate focused element */
+            if (keyboard_mode) {
+                if (focus_index == FOCUS_CLOSE_BTN) {
+                    /* Close button - exit */
+                    selected_file = -2; /* Signal to exit */
+                } else if (focus_index == FOCUS_BACK_BTN) {
+                    os_api->fat16_chdir("..");
+                    update_path(NULL, 1);
+                    refresh_file_list();
+                    focus_index = FOCUS_FILE_START;
+                } else {
+                    /* File selected */
+                    selected_file = focus_index - FOCUS_FILE_START;
+                    /* Try to open directory or file */
+                    int file_idx = 0;
+                    int current_idx = 0;
+                    while (file_idx < selected_file && file_list_str[current_idx]) {
+                        if (file_list_str[current_idx] == '|') file_idx++;
+                        current_idx++;
+                    }
+                    /* Extract filename */
+                    char filename_buf[MAX_FILENAME];
+                    int buf_idx = 0;
+                    while (file_list_str[current_idx] && file_list_str[current_idx] != '|' && buf_idx < MAX_FILENAME - 1) {
+                        filename_buf[buf_idx++] = file_list_str[current_idx++];
+                    }
+                    filename_buf[buf_idx] = '\0';
+                    
+                    /* Check if directory */
+                    if (buf_idx > 0 && filename_buf[buf_idx - 1] == '/') {
+                        filename_buf[buf_idx - 1] = '\0';
+                        os_api->fat16_chdir(filename_buf);
+                        refresh_file_list();
+                        focus_index = FOCUS_FILE_START;
+                    }else{
+                        os_api->print_shell(filename_buf);
+                        os_api->run_with_status(filename_buf,0);
+                    }
                 }
             }
             break;
@@ -666,18 +807,20 @@ static void app_loop(void) {
 
         /* Draw main window frame with 3D effect */
         os_api->vgraphics_draw_window(APP_X - 1, APP_Y - 1, APP_WIDTH + 2, APP_HEIGHT + 2, 
-                                       " Program Runner ", WINDOW_BORDER);
+                                       " PROGRAM RUNNER ", WINDOW_BORDER);
         
         /* Draw close button [X] */
         int close_x = CLOSE_BTN_X(APP_X, APP_WIDTH);
         int close_y = CLOSE_BTN_Y(APP_Y);
         int close_hover = is_hover(mouse_x, mouse_y, close_x, close_y, 3, 1);
         int close_focus = (keyboard_mode && focus_index == FOCUS_CLOSE_BTN);
-        uint8_t close_attr = (close_hover || close_focus) ? ATTR(COLOR_WHITE, COLOR_RED) : ATTR(COLOR_WHITE, COLOR_GREEN);
+        uint8_t close_attr = (close_hover || close_focus) ? ATTR(COLOR_WHITE, COLOR_RED) : ATTR(COLOR_WHITE, COLOR_BLUE);
         os_api->vgraphics_put_string(close_x, close_y, "[X]", close_attr);    
       
+
+    
         /* Draw main UI */
-        draw_runner_app(APP_X, APP_Y, APP_WIDTH, APP_HEIGHT, mouse_x, mouse_y);
+        draw_files_app(APP_X, APP_Y, APP_WIDTH, APP_HEIGHT, mouse_x, mouse_y);
         
         /* Draw mouse cursor */
         os_api->vgraphics_put_char(mouse_x, mouse_y, MOUSE_CHAR, MOUSE_COLOR);
@@ -724,30 +867,19 @@ static void app_loop(void) {
         /* Handle keyboard navigation */
         handle_keyboard_nav(c);
         
-        /* Handle clicks and keyboard activation */
+        /* Check if keyboard nav signaled exit */
+        if (selected_file == -2) break;
+        
+        /* Mouse movement with arrow keys (only in mouse mode) */
+        if (!keyboard_mode) {
+            handle_mouse_movement(c);
+        }
+        
+        /* Handle clicks */
         if (c == '\n' || c == ' ') {
-            if (keyboard_mode) {
-                /* Keyboard activation */
-                if (focus_index == FOCUS_CLOSE_BTN) {
-                    break;
-                } else if (focus_index == FOCUS_REFRESH) {
-                    refresh_file_list();
-                } else if (focus_index == FOCUS_RUN) {
-                    run_selected_file();
-                } else if (focus_index >= FOCUS_FILE_START) {
-                    /* Run selected file */
-                    run_selected_file();
-                }
-            } else {
-                /* Mouse click */
-                action_t action = handle_runner_click(APP_X, APP_Y, APP_WIDTH, APP_HEIGHT, mouse_x, mouse_y);
-                process_action(action);
-                
-                /* If a file was selected with mouse, run it */
-                if (action == ACTION_SELECT_FILE) {
-                    run_selected_file();
-                }
-            }
+            keyboard_mode = 0; /* Switch to mouse mode on click */
+            action_t action = handle_files_click(APP_X, APP_Y, APP_WIDTH, APP_HEIGHT, mouse_x, mouse_y);
+            process_action(action);
         }
     }
 }
@@ -767,6 +899,8 @@ int main(void) {
     
     os_api->enable_cursor();
     os_api->vgraphics_clear(COLOR_BLACK);
+
+    os_api->fat16_chdir("/");
     
     return 0;
 }

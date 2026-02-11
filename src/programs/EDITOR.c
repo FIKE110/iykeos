@@ -53,8 +53,16 @@ int line_count = 0;
 uint8_t quit=0;
 
 uint8_t saved=1;
-
-
+typedef struct {
+    char name[8];
+    char ext[3];
+    uint8_t attr;
+    uint8_t reserved[10];
+    uint16_t time;
+    uint16_t date;
+    uint16_t first_cluster;
+    uint32_t size;
+} __attribute__((packed)) fat16_dir_entry;
 
 typedef struct {
     void (*print_shell)(const char*);
@@ -77,7 +85,7 @@ typedef struct {
     int (*load_file)(const char*, uint8_t*);
     int (*delete_file)(const char*);
     void (*list_files)(void);
-    int (*get_file_list)(void*, int);
+    int (*get_file_list)(char* files);
     void (*disable_cursor)(void);
     void (*mouse_init)(void);
     void (*enable_cursor)(void);
@@ -109,7 +117,7 @@ typedef struct {
     int (*fat16_delete_file)(const char* filename);
     int (*fat16_chdir)(const char* dirname);
     int (*fat16_rmdir)(const char* dirname);
-    int (*fat16_list_root)(void* entries, int max_entries);
+    int (*fat16_list_root)(fat16_dir_entry* entries, int max_entries);
     void (*start_shell)();
     void (*graphics_loading_screen)();
     void (*graphics_clear_screen_g)(uint8_t color);
@@ -118,10 +126,21 @@ typedef struct {
     void (*graphics_draw_box)(int x, int y, int w, int h, uint8_t color);
     void (*graphics_draw_button)(int x, int y, int w, int h, const char* label, uint8_t color);
     void (*graphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
-    void (*graphics_putpixel)(int x, int y, uint8_t color);
+    void (*graphics_put_pixel)(int x, int y, uint8_t color);
+    void (*vgraphics_init)(void);
+    void (*vgraphics_clear)(uint8_t color);
+    void (*vgraphics_repaint)(void);
+    void (*vgraphics_put_char)(int x, int y, char c, uint8_t color);
+    void (*vgraphics_put_string)(int x, int y, const char* str, uint8_t color);
+    void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
+    void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
+    void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
+    int (*run_with_status)(char* filename,uint32_t address);
+    uint32_t (*fat16_file_size)(char* filename);
+    int (*str_to_int)(const char *s);
 
 } os_api_t;
- 
+
 void next_line();
 void set_char_with_cursor(char c);
 void clear_memory(void* start_addr, uint32_t size);

@@ -3,7 +3,7 @@
 #include <stddef.h>
 
 // Adjustable game speed - higher = slower
-int game_speed = 500;
+int game_speed = 700;
 
 #define OS_API_ADDR 0x5F0F0
 
@@ -175,10 +175,16 @@ void init_api() {
 // Parse number from string until delimiter
 int parse_number(const char* str, int* pos, char delimiter) {
     int num = 0;
+    // Skip any leading delimiters first
+    while (str[*pos] == delimiter) {
+        (*pos)++;
+    }
+    // Now parse the number
     while (str[*pos] >= '0' && str[*pos] <= '9') {
         num = num * 10 + (str[*pos] - '0');
         (*pos)++;
     }
+    // Skip trailing delimiter
     if (str[*pos] == delimiter) {
         (*pos)++;
     }
@@ -266,7 +272,8 @@ void init_ball() {
     ball.x = GAME_X + GAME_WIDTH / 2;
     ball.y = GAME_Y + GAME_HEIGHT / 2;
     ball.dx = (os_api->get_random(2) == 0) ? -1 : 1;  // Random left or right
-    ball.dy = (os_api->get_random(3) - 1);  // -1, 0, or 1
+    // Ensure dy is never 0, and add more variation (-2 to -1 or 1 to 2)
+    ball.dy = (os_api->get_random(2) == 0) ? -1 - os_api->get_random(2) : 1 + os_api->get_random(2);
     ball.active = true;
 }
 
@@ -275,7 +282,8 @@ void reset_ball() {
     ball.x = GAME_X + GAME_WIDTH / 2;
     ball.y = GAME_Y + GAME_HEIGHT / 2;
     ball.dx = (game.left_score > game.right_score) ? -1 : 1;  // Serve to loser
-    ball.dy = (os_api->get_random(3) - 1);
+    // Ensure dy is never 0, and add more variation (-2 to -1 or 1 to 2)
+    ball.dy = (os_api->get_random(2) == 0) ? -1 - os_api->get_random(2) : 1 + os_api->get_random(2);
     ball.active = true;
 }
 
@@ -390,13 +398,18 @@ void update_ball() {
         ball.y < game.left_paddle_y + PADDLE_HEIGHT) {
         
         ball.x = LEFT_PADDLE_X + 3;
-        ball.dx = 1;  // Bounce right
+        // Vary horizontal speed (1-2) based on randomness
+        ball.dx = 1 + os_api->get_random(2);
         
-        // Calculate angle based on hit position
+        // Calculate angle based on hit position with more variation
         int hit_pos = ball.y - game.left_paddle_y;
-        ball.dy = (hit_pos - PADDLE_HEIGHT/2) / 2;
-        if (ball.dy < -2) ball.dy = -2;
-        if (ball.dy > 2) ball.dy = 2;
+        ball.dy = (hit_pos - PADDLE_HEIGHT/2);
+        // Add randomness to dy (-1 to +1)
+        ball.dy += (os_api->get_random(3) - 1);
+        if (ball.dy < -3) ball.dy = -3;
+        if (ball.dy > 3) ball.dy = 3;
+        // Ensure dy is never 0
+        if (ball.dy == 0) ball.dy = (os_api->get_random(2) == 0) ? -1 : 1;
     }
     
     // Right paddle collision (AI)
@@ -405,13 +418,18 @@ void update_ball() {
         ball.y < game.right_paddle_y + PADDLE_HEIGHT) {
         
         ball.x = RIGHT_PADDLE_X - 2;
-        ball.dx = -1;  // Bounce left
+        // Vary horizontal speed (1-2) based on randomness
+        ball.dx = -1 - os_api->get_random(2);
         
-        // Calculate angle based on hit position
+        // Calculate angle based on hit position with more variation
         int hit_pos = ball.y - game.right_paddle_y;
-        ball.dy = (hit_pos - PADDLE_HEIGHT/2) / 2;
-        if (ball.dy < -2) ball.dy = -2;
-        if (ball.dy > 2) ball.dy = 2;
+        ball.dy = (hit_pos - PADDLE_HEIGHT/2);
+        // Add randomness to dy (-1 to +1)
+        ball.dy += (os_api->get_random(3) - 1);
+        if (ball.dy < -3) ball.dy = -3;
+        if (ball.dy > 3) ball.dy = 3;
+        // Ensure dy is never 0
+        if (ball.dy == 0) ball.dy = (os_api->get_random(2) == 0) ? -1 : 1;
     }
     
     // Scoring
@@ -607,7 +625,9 @@ void game_loop() {
 
 // Entry point
 void main(void) {
+    
     init_api();
     os_api->screen_clear_shell();
+    game_speed = 1000;  
     game_loop();
 }

@@ -219,6 +219,8 @@ int ata_read_sector(uint32_t lba, uint8_t* buffer) {
     return 0;
 }
 
+
+
 int load_os_binary(void) {
     uint8_t* os_buffer = (uint8_t*)OS_LOAD_ADDRESS;
     uint8_t sector_buffer[512];
@@ -249,6 +251,8 @@ int load_os_binary(void) {
     print_string("\nOS loaded successfully\n");
     return 0;
 }
+
+
 
 void kernel_main(void) {
     clear_screen();

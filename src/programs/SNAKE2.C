@@ -160,10 +160,16 @@ void init_api() {
 
 int parse_number(const char* str, int* pos, char delimiter) {
     int num = 0;
+    // Skip any leading delimiters first
+    while (str[*pos] == delimiter) {
+        (*pos)++;
+    }
+    // Now parse the number
     while (str[*pos] >= '0' && str[*pos] <= '9') {
         num = num * 10 + (str[*pos] - '0');
         (*pos)++;
     }
+    // Skip trailing delimiter
     if (str[*pos] == delimiter) {
         (*pos)++;
     }
@@ -459,7 +465,7 @@ void game_loop() {
         score = 0;
         place_food();
         
-        int base_speed = 35;
+        int base_speed = 50;
         bool game_over = false;
         
         while (!game_over) {
@@ -481,8 +487,8 @@ void game_loop() {
                 break;
             }
             
-            int current_speed = base_speed - (snake.length / 5);
-            if (current_speed < 15) current_speed = 15;
+            int current_speed = base_speed - (snake.length / 8);
+            if (current_speed < 25) current_speed = 25;
             
             os_api->vgraphics_repaint();
             for (volatile int i = 0; i < current_speed * 100000; i++);
@@ -492,6 +498,7 @@ void game_loop() {
         
         save_high_score();
         draw_game_over();
+        os_api->vgraphics_repaint();
         
         bool waiting = true;
         while (waiting) {

@@ -70,6 +70,23 @@ char toupper(char c) {
     return c;
 }
 
+
+int str_to_int(const char* s) {
+    int result = 0;
+    int sign = 1;
+    if (*s == '-') {
+        sign = -1;
+        s++;
+    }
+
+    while (*s) {
+        if (*s < '0' || *s > '9') break; // stop at non-digit
+        result = result * 10 + (*s - '0');
+        s++;
+    }
+    return result * sign;
+}
+
 void hex_to_str(uint32_t n, char* dest) {
     if (n == 0) {
         dest[0] = '0';

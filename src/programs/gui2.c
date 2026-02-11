@@ -1136,7 +1136,7 @@ void window() {
                 }
                 if (is_hover(mx, my, 2, 8, 6, 2)) { os_api->run_with_status("FILES.BIN",0); }
                 if (is_hover(mx, my, 2, 13, 6, 2)) { 
-                   os_api->run_with_status("RUNNER.BIN",0);
+                   os_api->run_with_status("RUNNER.BIN",0x01200000);
                 }
                 if (is_hover(mx, my, 2, 18, 6, 2)) { app_window_open = APP_EDIT; os_api->strcpy(app_window_title, "Edit"); }
                 
@@ -1181,7 +1181,7 @@ void window() {
                 }
                 // Runner
                 else if (is_hover(mx, my, pm_x + 1, pm_y + 4, 18, 1)) {
-                    os_api->run_with_status("RUNNER.BIN",0);
+                    os_api->run_with_status("RUNNER.BIN",0x01200000);
                     programs_menu_open = 0;
                     menu_open = 0;
                 }

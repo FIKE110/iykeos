@@ -18,3 +18,4 @@ size_t strlen(const char* str);
 char toupper(char c);
 void hex_to_str(uint32_t n, char* dest);
 void int_to_str(uint32_t n, char* dest);
+int str_to_int(const char *s);

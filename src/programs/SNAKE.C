@@ -228,11 +228,16 @@ bool check_self_collision() {
 // Parse number from string until delimiter
 int parse_number(const char* str, int* pos, char delimiter) {
     int num = 0;
+    // Skip any leading delimiters first
+    while (str[*pos] == delimiter) {
+        (*pos)++;
+    }
+    // Now parse the number
     while (str[*pos] >= '0' && str[*pos] <= '9') {
         num = num * 10 + (str[*pos] - '0');
         (*pos)++;
     }
-    // Skip delimiter
+    // Skip trailing delimiter
     if (str[*pos] == delimiter) {
         (*pos)++;
     }

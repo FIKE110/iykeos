@@ -300,9 +300,11 @@ int main_game_menu() {
 // Entry point
 void main(void) {
     init_api();
+    os_api->disable_cursor();
     os_api->screen_clear_shell();
     
     main_game_menu();
     
     os_api->screen_clear_shell();
+
 }

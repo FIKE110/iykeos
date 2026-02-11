@@ -125,7 +125,14 @@ typedef struct {
     void (*vgraphics_put_char)(int x, int y, char c, uint8_t color);
     void (*vgraphics_put_string)(int x, int y, const char* str, uint8_t color);
     void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
+    void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
+    void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
+    int (*run_with_status)(char* filename,uint32_t address);
+    uint32_t (*fat16_file_size)(char* filename);
+    int (*str_to_int)(const char *s);
+
 } os_api_t;
+
 
 os_api_t* os_api;
 
@@ -154,6 +161,8 @@ int high_score = 0;
 int lives = 3;
 bool game_over_flag = false;
 bool victory_flag = false;
+int ball_speed = 25;
+int bricks_broken = 0;
 
 int parse_number(const char* str, int* pos, char delimiter) {
     int num = 0;
@@ -339,6 +348,8 @@ void init_game() {
     lives = 3;
     game_over_flag = false;
     victory_flag = false;
+    ball_speed = 25;
+    bricks_broken = 0;
     
     high_score = load_high_score();
     
@@ -371,7 +382,7 @@ void reset_ball() {
 }
 
 void move_paddle(int direction) {
-    paddle.x += direction;
+    paddle.x += direction * 2;
     
     if (paddle.x < GAME_X + 1) {
         paddle.x = GAME_X + 1;
@@ -397,6 +408,20 @@ bool check_brick_collision() {
                     
                     bricks[row][col].active = false;
                     ball.dy = -ball.dy;
+                    
+                    bricks_broken++;
+                    if (ball_speed > 8 && bricks_broken % 5 == 0) {
+                        ball_speed--;
+                    }
+                    
+                    int random_bounce = os_api->get_random(100);
+                    if (random_bounce < 20) {
+                        ball.dx = -ball.dx;
+                    } else if (random_bounce < 35) {
+                        ball.dx = (ball.dx > 0) ? 2 : -2;
+                    } else if (random_bounce < 50) {
+                        ball.dx = (ball.dx > 0) ? 1 : -1;
+                    }
                     
                     score += 10 * (BRICK_ROWS - row);
                     
@@ -429,12 +454,22 @@ void update_ball() {
     
     if (ball.x <= GAME_X + 1 || ball.x >= GAME_X + GAME_WIDTH - 2) {
         ball.dx = -ball.dx;
+        int random_angle = os_api->get_random(100);
+        if (random_angle < 30) {
+            ball.dx = (ball.dx > 0) ? 2 : -2;
+        } else if (random_angle < 60) {
+            ball.dx = (ball.dx > 0) ? 1 : -1;
+        }
         ball.x += ball.dx;
         os_api->beep(440, 5);
     }
     
     if (ball.y <= GAME_Y + 1) {
         ball.dy = -ball.dy;
+        int random_bounce = os_api->get_random(100);
+        if (random_bounce < 25) {
+            ball.dx = -ball.dx;
+        }
         ball.y += ball.dy;
         os_api->beep(440, 5);
     }
@@ -526,14 +561,18 @@ void show_title_screen() {
     const char* instructions[] = {
         "",
         "Break all the bricks to win!",
+        "Ball gets faster as you play!",
         "",
         "CONTROLS:",
         "<- / ->  - Move paddle",
         "A / D    - Move paddle (alt)",
+        "SPACE    - Launch ball",
         "Q        - Quit game",
         "",
         "Press SPACE to start..."
     };
+
+    
     
     uint8_t text_color = VGA_COLOR(COLOR_WHITE, COLOR_BLACK);
     int inst_y = 13;
@@ -544,9 +583,15 @@ void show_title_screen() {
         int x = (SCREEN_WIDTH - len) / 2;
         os_api->vgraphics_put_string(x, inst_y + i, instructions[i], text_color);
     }
+
+
+    os_api->vgraphics_repaint();
+
+    
+    
     
     while (1) {
-        char key = os_api->keyboard_getchar();
+        char key = os_api->keyboard_read();
         if (key != 0) {
             if (key == ' ') {
                 return;
@@ -556,6 +601,8 @@ void show_title_screen() {
             }
         }
     }
+
+    
 }
 
 void show_countdown() {
@@ -576,10 +623,12 @@ void show_countdown() {
         draw_paddle();
         draw_ball();
         draw_score();
+        os_api->vgraphics_repaint();
         
         os_api->vgraphics_put_string(center_x - 1, center_y, count[i], colors[i]);
+        os_api->vgraphics_repaint();
         
-        for (volatile int d = 0; d < 3000000; d++);
+        os_api->busy_delay(5000);
     }
 }
 
@@ -588,18 +637,17 @@ void game_loop() {
     
     show_title_screen();
     
+    
     while (playing) {
         init_game();
         
         show_countdown();
         launch_ball();
         
-        int speed = 25;
         int frame_count = 0;
         
         while (!game_over_flag && !victory_flag) {
             clear_game_area();
-            
             draw_bricks();
             draw_paddle();
             draw_ball();
@@ -610,21 +658,24 @@ void game_loop() {
                 if (key == 'q' || key == 'Q' || key == 0x1B) {
                     playing = false;
                     break;
-                } else if (key == 'a' || key == 'A' || key == 0x4B) {
+                } else if (key == 'a' || key == 'A' || key == 0x13) {
                     move_paddle(-1);
-                } else if (key == 'd' || key == 'D' || key == 0x4D) {
+                } else if (key == 'd' || key == 'D' || key == 0x14) {
                     move_paddle(1);
+                } else if (key == ' ') {
+                    launch_ball();
                 }
             }
             
             frame_count++;
-            if (frame_count >= speed) {
+            if (frame_count >= ball_speed) {
                 frame_count = 0;
                 
                 update_ball();
                 
                 if (check_victory()) {
                     victory_flag = true;
+                    game_over_flag = true;
                     break;
                 }
             }
@@ -637,6 +688,7 @@ void game_loop() {
         
         save_high_score();
         draw_game_over();
+        os_api->vgraphics_repaint();
         
         bool waiting = true;
         while (waiting) {
