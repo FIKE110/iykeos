@@ -68,6 +68,7 @@ typedef struct {
     uint32_t size;        // File size in bytes
 } __attribute__((packed)) fat16_dir_entry;
 
+
 typedef struct {
     void (*print_shell)(const char*);
     void (*print_shellc)(char);
@@ -141,8 +142,10 @@ typedef struct {
     void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
     int (*run_with_status)(char* filename,uint32_t address);
     uint32_t (*fat16_file_size)(char* filename);
+    int (*str_to_int)(const char *s);
 
 } os_api_t;
+
 
 
 os_api_t* os_api;
@@ -854,7 +857,6 @@ void window() {
     os_api->graphics_init();
     os_api->graphics_loading_screen();
     os_api->mouse_init();
-    os_api->keyboard_init(); 
 
     
  
@@ -1228,6 +1230,7 @@ void start(){
 
 void main(void){
     start();
+    os_api->keyboard_init();
      window();
     os_api->load_vga(0);
 }

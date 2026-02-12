@@ -635,6 +635,7 @@ void start(){
 
 void main(void){
     start();
+    os_api->mouse_init();
      window();
     os_api->load_vga(0);
 }

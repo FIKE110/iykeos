@@ -638,10 +638,17 @@ static const char shift_map[128] = {
 };
 
 void keyboard_init() {
-    // Clear any pending keyboard data
-    while (inb_s(0x64) & 1) {
-        inb_s(0x60);
-    }
+    // Ensure keyboard interface is enabled (command 0xAE)
+    // mouse_wait(1);
+    // outb(0x64, 0xAE);
+    
+    // // Clear any pending keyboard data
+    // while (inb_s(0x64) & 1) {
+    //     inb_s(0x60);
+    // }
+    // Reset keyboard state variables
+    // shift_pressed = 0;
+    // capslock_on = 0;
 }
 
 char scancode_to_ascii(uint8_t scancode) {
@@ -674,7 +681,6 @@ if (scancode == 0x3A) {
     if (scancode & 0x80) {
         scancode &= 0x7F;
         if (scancode == 0x1D) return KEY_CTRL;
-        return 0;
         if (scancode == 0x48) return KEY_UP;
         if (scancode == 0x50) return KEY_DOWN;
         if (scancode == 0x4B) return KEY_LEFT;
