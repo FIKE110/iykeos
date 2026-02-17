@@ -1,6 +1,5 @@
 # IYKEOS
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-x86-orange.svg)](https://en.wikipedia.org/wiki/X86)
 [![Language](https://img.shields.io/badge/Language-C%2FAssembly-green.svg)](https://en.wikipedia.org/wiki/C_(programming_language))
 [![Version](https://img.shields.io/badge/Version-0.3-purple.svg)]()
@@ -16,8 +15,7 @@ IYKEOS is a hobby operating system developed for educational purposes. It demons
 **Version:** 0.3  
 **Author:** Chihurum Fortune  
 **Architecture:** x86 (32-bit Protected Mode)  
-**Design:** Microkernel (Kernel + OS split)  
-**License:** MIT
+**Design:** Microkernel (Kernel + OS split)
 
 ## Features
 
@@ -496,26 +494,6 @@ This is an educational open-source project. Contributions are welcome!
 - Types: `lowercase_t` for typedefs
 - Comment complex algorithms and hardware interactions
 - Keep functions focused and under 50 lines when possible
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
-```
-MIT License
-
-Copyright (c) 2025 Chihurum Fortune
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-```
 
 ## Acknowledgments
 
