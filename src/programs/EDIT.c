@@ -40,16 +40,39 @@
 /* Keys */
 #define KEY_UP          0x11
 #define KEY_DOWN        0x12
-#define KEY_LEFT        0x4B
-#define KEY_RIGHT       0x4D
-#define KEY_HOME        0x47
-#define KEY_END         0x4F
-#define KEY_CTRL        0x1D
-#define KEY_ESC         0x01
+#define KEY_LEFT        0x13
+#define KEY_RIGHT       0x14
+
+#define KEY_CTRL        0x15
+#define KEY_ALT         0x16
+#define KEY_SHIFT       0x17
+#define KEY_CAPSLOCK    0x18
+#define KEY_FN          0x19
+#define KEY_ESC         0x1B
 #define KEY_ENTER       '\n'
 #define KEY_BACKSPACE   0x08
-#define KEY_DELETE      0x53
 #define KEY_TAB         '\t'
+#define KEY_SPACE       ' '
+#define KEY_DELETE      0x7F
+
+#define KEY_F1          0x80
+#define KEY_F2          0x81
+#define KEY_F3          0x82
+#define KEY_F4          0x83
+#define KEY_F5          0x84
+#define KEY_F6          0x85
+#define KEY_F7          0x86
+#define KEY_F8          0x87
+#define KEY_F9          0x88
+#define KEY_F10         0x89
+#define KEY_F11         0x8A
+#define KEY_F12         0x8B
+
+#define KEY_HOME        0x8C
+#define KEY_END         0x8D
+#define KEY_PAGEUP      0x8E
+#define KEY_PAGEDOWN    0x8F
+#define KEY_INSERT      0x90
 
 /* FAT16 directory entry */
 typedef struct {
@@ -64,6 +87,7 @@ typedef struct {
 } __attribute__((packed)) fat16_dir_entry;
 
 /* OS API structure */
+
 typedef struct {
     void (*print_shell)(const char*);
     void (*print_shellc)(char);
@@ -135,8 +159,12 @@ typedef struct {
     void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
     void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
     void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
+    int (*run_with_status)(char* filename,uint32_t address);
+    uint32_t (*fat16_file_size)(char* filename);
+    int (*str_to_int)(const char *s);
 
 } os_api_t;
+
 
 os_api_t* os_api;
 
@@ -424,7 +452,7 @@ void ensure_cursor_visible(void) {
 
 void draw_header(void) {
     /* Top header bar - Blue background */
-    os_api->vgraphics_draw_rect_fill(0, 0, SCREEN_WIDTH, 1, VGA_COLOR(COLOR_HEADER_FG, COLOR_HEADER_BG));
+    os_api->vgraphics_draw_rect_fill(0, 0, SCREEN_WIDTH, 1, COLOR_GRAY);
     
     /* Title on left */
     char title[32];
@@ -579,7 +607,7 @@ void draw_bottom_bar(void) {
     os_api->vgraphics_draw_rect_fill(0, bottom_y, SCREEN_WIDTH, 1, VGA_COLOR(COLOR_BOTTOM_FG, COLOR_BOTTOM_BG));
     
     os_api->vgraphics_put_string(1, bottom_y, "IYKEOS Text Editor v1.0", 
-                                  VGA_COLOR(COLOR_BOTTOM_FG, COLOR_BOTTOM_BG));
+                                  VGA_COLOR(0XF, 0X0));
 }
 
 void draw_editor(void) {

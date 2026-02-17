@@ -2,7 +2,7 @@ CC      := gcc
 LD      := ld
 NASM    := nasm
 OBJCOPY := objcopy
-QEMU    := qemu-system-x86_64
+QEMU    := qemu-system-i386 
 
 SRC_DIR      := .
 BOOT_DIR     := $(SRC_DIR)/src/bootloader

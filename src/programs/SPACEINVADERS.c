@@ -554,28 +554,29 @@ void draw_game_over() {
     int box_w = 30;
     int box_h = 10;
     
-    os_api->vgraphics_draw_box(box_x, box_y, box_w, box_h, VGA_COLOR(COLOR_RED, COLOR_BLACK));
+      os_api->vgraphics_draw_rect_fill(box_x, box_y, box_w, box_h, COLOR_WHITE);
+    os_api->vgraphics_draw_box(box_x, box_y, box_w, box_h, VGA_COLOR(COLOR_RED, COLOR_WHITE));
     
     if (victory) {
-        os_api->vgraphics_put_string(box_x + 8, box_y + 1, "YOU WIN!", VGA_COLOR(COLOR_LGREEN, COLOR_BLACK));
+        os_api->vgraphics_put_string(box_x + 8, box_y + 1, "YOU WIN!", VGA_COLOR(COLOR_LGREEN, COLOR_WHITE));
     } else {
-        os_api->vgraphics_put_string(box_x + 8, box_y + 1, "GAME OVER!", VGA_COLOR(COLOR_LRED, COLOR_BLACK));
+        os_api->vgraphics_put_string(box_x + 8, box_y + 1, "GAME OVER!", VGA_COLOR(COLOR_LRED, COLOR_WHITE));
     }
     
     char score_str[20];
     os_api->int_to_str(score, score_str);
-    os_api->vgraphics_put_string(box_x + 3, box_y + 3, "Final Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
-    os_api->vgraphics_put_string(box_x + 16, box_y + 3, score_str, VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
+    os_api->vgraphics_put_string(box_x + 3, box_y + 3, "Final Score: ", VGA_COLOR(COLOR_BLACK, COLOR_WHITE));
+    os_api->vgraphics_put_string(box_x + 16, box_y + 3, score_str, VGA_COLOR(COLOR_BLACK, COLOR_WHITE));
     
     os_api->int_to_str(high_score, score_str);
-    os_api->vgraphics_put_string(box_x + 3, box_y + 5, "High Score: ", VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
-    os_api->vgraphics_put_string(box_x + 15, box_y + 5, score_str, VGA_COLOR(COLOR_LCYAN, COLOR_BLACK));
+    os_api->vgraphics_put_string(box_x + 3, box_y + 5, "High Score: ", VGA_COLOR(COLOR_BLACK, COLOR_WHITE));
+    os_api->vgraphics_put_string(box_x + 15, box_y + 5, score_str, VGA_COLOR(COLOR_BLACK, COLOR_WHITE));
     
     if (score > high_score && score > 0) {
-        os_api->vgraphics_put_string(box_x + 6, box_y + 6, "NEW HIGH SCORE!", VGA_COLOR(COLOR_LGREEN, COLOR_BLACK));
+        os_api->vgraphics_put_string(box_x + 6, box_y + 6, "NEW HIGH SCORE!", VGA_COLOR(COLOR_LGREEN, COLOR_WHITE));
     }
     
-    os_api->vgraphics_put_string(box_x + 2, box_y + 8, "R: Restart  Q: Quit", VGA_COLOR(COLOR_LGRAY, COLOR_BLACK));
+    os_api->vgraphics_put_string(box_x + 2, box_y + 8, "R: Restart  Q: Quit", VGA_COLOR(COLOR_BLACK, COLOR_WHITE));
 }
 
 void show_title_screen() {

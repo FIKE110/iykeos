@@ -47,6 +47,18 @@ const char* game_names[MAX_GAMES] = {
     "Space Invaders"
 };
 
+
+typedef struct {
+    char name[8];
+    char ext[3];
+    uint8_t attr;
+    uint8_t reserved[10];
+    uint16_t time;
+    uint16_t date;
+    uint16_t first_cluster;
+    uint32_t size;
+} __attribute__((packed)) fat16_dir_entry;
+
 // OS API structure
 typedef struct {
     void (*print_shell)(const char*);
@@ -101,6 +113,7 @@ typedef struct {
     int (*fat16_delete_file)(const char* filename);
     int (*fat16_chdir)(const char* dirname);
     int (*fat16_rmdir)(const char* dirname);
+    int (*fat16_list_root)(fat16_dir_entry* entries, int max_entries);
     void (*start_shell)();
     void (*graphics_loading_screen)();
     void (*graphics_clear_screen_g)(uint8_t color);
@@ -110,10 +123,21 @@ typedef struct {
     void (*graphics_draw_button)(int x, int y, int w, int h, const char* label, uint8_t color);
     void (*graphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
     void (*graphics_put_pixel)(int x, int y, uint8_t color);
+    void (*vgraphics_init)(void);
+    void (*vgraphics_clear)(uint8_t color);
+    void (*vgraphics_repaint)(void);
+    void (*vgraphics_put_char)(int x, int y, char c, uint8_t color);
+    void (*vgraphics_put_string)(int x, int y, const char* str, uint8_t color);
+    void (*vgraphics_draw_box)(int x, int y, int w, int h, uint8_t color);
+    void (*vgraphics_draw_window)(int x, int y, int w, int h, const char* title, uint8_t color);
+    void (*vgraphics_draw_rect_fill)(int x, int y, int w, int h, uint8_t color);
+    int (*run_with_status)(char* filename,uint32_t address);
+    uint32_t (*fat16_file_size)(char* filename);
+    int (*str_to_int)(const char *s);
+
 } os_api_t;
 
-static os_api_t* os_api;
-static uint16_t* vga_buffer = (uint16_t*)0xB8000;
+os_api_t* os_api;
 
 // Current selection
 int selected_game = 0;
@@ -123,64 +147,28 @@ void init_api() {
     os_api = (os_api_t*)OS_API_ADDR;
 }
 
-// Clear screen with color
-void clear_screen(uint8_t color) {
-    uint16_t blank = ' ' | (color << 12);
-    for (int i = 0; i < SCREEN_WIDTH * SCREEN_HEIGHT; i++) {
-        vga_buffer[i] = blank;
-    }
-}
 
-// Put character at position
-void put_char(int x, int y, char c, uint8_t color) {
-    if (x < 0 || x >= SCREEN_WIDTH || y < 0 || y >= SCREEN_HEIGHT) return;
-    vga_buffer[y * SCREEN_WIDTH + x] = (color << 8) | c;
-}
-
-// Put string at position
-void put_string(int x, int y, const char* str, uint8_t color) {
-    int i = 0;
-    while (str[i] && x + i < SCREEN_WIDTH) {
-        put_char(x + i, y, str[i], color);
-        i++;
-    }
-}
-
-// Draw box
-void draw_box(int x, int y, int w, int h, uint8_t color) {
-    for (int i = 0; i < w; i++) {
-        put_char(x + i, y, '-', color);
-        put_char(x + i, y + h - 1, '-', color);
-    }
-    for (int i = 0; i < h; i++) {
-        put_char(x, y + i, '|', color);
-        put_char(x + w - 1, y + i, '|', color);
-    }
-    put_char(x, y, '+', color);
-    put_char(x + w - 1, y, '+', color);
-    put_char(x, y + h - 1, '+', color);
-    put_char(x + w - 1, y + h - 1, '+', color);
-}
 
 // Draw the game menu
 void draw_menu() {
-    os_api->graphics_init();  // Initialize graphics mode
-    clear_screen(COLOR_BLACK);
+    os_api->graphics_init();
+    os_api->vgraphics_init();  // Initialize graphics mode
+    os_api->vgraphics_clear(COLOR_BLACK);
     
     // Title
     const char* title = "GAME MENU";
-    put_string(35, 3, title, VGA_COLOR(COLOR_LIGHT_GREEN, COLOR_BLACK));
+    os_api->vgraphics_put_string(35, 3, title, VGA_COLOR(COLOR_LIGHT_GREEN, COLOR_BLACK));
     
     // Decorative line
     for (int i = 20; i < 60; i++) {
-        put_char(i, 4, '=', VGA_COLOR(COLOR_GREEN, COLOR_BLACK));
+        os_api->vgraphics_put_char(i, 4, '=', VGA_COLOR(COLOR_GREEN, COLOR_BLACK));
     }
     
     // Draw box around menu
-    draw_box(15, 6, 50, 15, VGA_COLOR(COLOR_LIGHT_GRAY, COLOR_BLACK));
+    os_api->vgraphics_draw_box(15, 6, 50, 15, VGA_COLOR(COLOR_LIGHT_GRAY, COLOR_BLACK));
     
     // Menu header
-    put_string(20, 7, "Select a game:", VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
+    os_api->vgraphics_put_string(20, 7, "Select a game:", VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
     
     // Draw game list
     int start_y = 9;
@@ -189,23 +177,24 @@ void draw_menu() {
         
         // Draw selection arrow
         if (i == selected_game) {
-            put_string(20, y, ">", VGA_COLOR(COLOR_LIGHT_GREEN, COLOR_BLACK));
-            put_string(22, y, game_names[i], VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
+            os_api->vgraphics_put_string(20, y, ">", VGA_COLOR(COLOR_LIGHT_GREEN, COLOR_BLACK));
+            os_api->vgraphics_put_string(22, y, game_names[i], VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
         } else {
-            put_string(20, y, " ", VGA_COLOR(COLOR_BLACK, COLOR_BLACK));
-            put_string(22, y, game_names[i], VGA_COLOR(COLOR_LIGHT_GRAY, COLOR_BLACK));
+            os_api->vgraphics_put_string(20, y, " ", VGA_COLOR(COLOR_BLACK, COLOR_BLACK));
+            os_api->vgraphics_put_string(22, y, game_names[i], VGA_COLOR(COLOR_LIGHT_GRAY, COLOR_BLACK));
         }
     }
     
     // Instructions at bottom
-    put_string(20, 22, "Controls: UP/DOWN to navigate, ENTER to select, Q to quit", 
+    os_api->vgraphics_put_string(20, 22, "Controls: UP/DOWN to navigate, ENTER to select, Q to quit", 
                VGA_COLOR(COLOR_LIGHT_CYAN, COLOR_BLACK));
 }
 
 // Handle menu input
 // Returns: -1 to quit, -2 to redraw, 0+ to select game
 int handle_menu_input() {
-    char c = os_api->keyboard_read();
+    
+    char c = os_api->keyboard_getchar();
     
     switch (c) {
         case 0x11: // KEY_UP
@@ -240,12 +229,13 @@ int handle_menu_input() {
 
 void show_coming_soon(int game_id) {
     os_api->graphics_init();  // Initialize graphics mode
-    clear_screen(COLOR_BLACK);
+    os_api->vgraphics_init();
+    os_api->vgraphics_clear(COLOR_BLACK);
     
-    put_string(30, 10, "COMING SOON!", VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
-    put_string(25, 12, game_names[game_id], VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
-    put_string(20, 14, "This game is not yet implemented.", VGA_COLOR(COLOR_LIGHT_GRAY, COLOR_BLACK));
-    put_string(20, 20, "Press any key to return to menu...", VGA_COLOR(COLOR_LIGHT_CYAN, COLOR_BLACK));
+    os_api->vgraphics_put_string(30, 10, "COMING SOON!", VGA_COLOR(COLOR_YELLOW, COLOR_BLACK));
+    os_api->vgraphics_put_string(25, 12, game_names[game_id], VGA_COLOR(COLOR_WHITE, COLOR_BLACK));
+    os_api->vgraphics_put_string(20, 14, "This game is not yet implemented.", VGA_COLOR(COLOR_LIGHT_GRAY, COLOR_BLACK));
+    os_api->vgraphics_put_string(20, 20, "Press any key to return to menu...", VGA_COLOR(COLOR_LIGHT_CYAN, COLOR_BLACK));
     
     os_api->keyboard_read();
 }
@@ -255,6 +245,8 @@ int main_game_menu() {
     
     while (1) {
         draw_menu();
+
+    
         
         int result = handle_menu_input();
         
@@ -293,7 +285,7 @@ int main_game_menu() {
             }
             // Otherwise return to menu
         }
-        // result == -2 means just redraw
+             os_api->vgraphics_repaint();
     }
 }
 

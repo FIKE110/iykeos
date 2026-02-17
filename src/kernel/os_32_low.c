@@ -688,12 +688,12 @@ if (scancode == 0x3A) {
         return 0;
     }
 
-    uint8_t code=scancode;
-    code=code & 0x7F;
-    if (code == 0x48) return KEY_UP;
-    if (code == 0x50) return KEY_DOWN;
-    if (code == 0x4B) return KEY_LEFT;
-    if (code == 0x4D) return KEY_RIGHT;
+    // uint8_t code=scancode;
+    // code=code & 0x7F;
+    // if (code == 0x48) return KEY_UP;
+    // if (code == 0x50) return KEY_DOWN;
+    // if (code == 0x4B) return KEY_LEFT;
+    // if (code == 0x4D) return KEY_RIGHT;
 
     return scancode_to_ascii(scancode);
 }
@@ -701,6 +701,7 @@ if (scancode == 0x3A) {
 char keyboard_read() {
     char c;
        while ((c = keyboard_getchar()) == 0) ;
+       
     return c;
 }
 
