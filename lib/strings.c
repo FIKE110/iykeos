@@ -13,6 +13,23 @@ int strcmp(const char* s1, const char* s2) {
     return *s1 - *s2; // handles different lengths
 }
 
+
+void reverseString(char str[]) {
+    int length = strlen(str);
+    int start = 0;
+    int end = length - 1;
+    char temp;
+
+    while (start < end) {
+        temp = str[start];
+        str[start] = str[end];
+        str[end] = temp;
+
+        start++;
+        end--;
+    }
+}
+
 char* strcpy(char* dest, const char* src) {
     char* temp = dest;
     while (*src) {
@@ -45,6 +62,8 @@ int memcmp(const void* s1, const void* s2, size_t n) {
     }
     return 0;
 }
+
+
 
 
 

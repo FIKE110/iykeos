@@ -96,8 +96,18 @@ typedef struct {
     int (*run_with_status)(char* filename,uint32_t address);
     uint32_t (*fat16_file_size)(char* filename);
     int (*str_to_int)(const char *s);
+    void (*stack_push)(uint32_t);
+    uint32_t (*stack_pop)(void);
+    uint32_t (*stack_peek)(void);
+    int (*stack_is_empty)(void);
+    int (*stack_is_full)(void);
+    void (*stack_clear)(void);
+    uint8_t (*push_string_to_stack)(char* str);
+    uint8_t (*pop_string_from_stack)(char* str);
+    void (*reverse_string)(char* str);
 
 } os_api_t;
+
 
 #define OS_API_ADDR 0x5F0F0
 static os_api_t* os_api;
@@ -1177,7 +1187,7 @@ static void cmd_print(char* args) {
     os_api->print_shellc('\n');
 }
 
-static void cmd_input(char* args) {
+static void  cmd_input(char* args) {
     args = skip_spaces(args);
     
     // Check for prompt string
@@ -1229,6 +1239,7 @@ static void cmd_input(char* args) {
         if (var) *var = str_to_int(input_buf);
     }
 }
+
 
 static void cmd_let(char* args) {
     args = skip_spaces(args);
@@ -1852,6 +1863,8 @@ static void cmd_run(void) {
 
 static void cmd_end(void) {
     running = 0;
+
+    
 }
 
 static void cmd_rem(char* args) {
@@ -2038,41 +2051,51 @@ void main(void) {
     init_api();
     clear_memory();
     
-    os_api->print_shell("TINYBASIC Interpreter v2.0\n");
-    os_api->print_shell("===========================\n\n");
     
-    // Prompt for filename
-    os_api->print_shell("Enter .BAS filename to run: ");
-    
-    // Read filename from keyboard
-    int idx = 0;
-    while (idx < 31) {
-        char c = os_api->keyboard_read();
-        if (c == '\n' || c == '\r') {
-            break;
-        } else if (c == '\b' && idx > 0) {
-            idx--;
-            os_api->print_shellc('\b');
-            os_api->print_shellc(' ');
-            os_api->print_shellc('\b');
-        } else if (c >= 32 && c < 127) {
-            filename[idx++] = c;
-            os_api->print_shellc(c);
-        }
+    // Check stack for filename (passed from shell)
+    // Stack should have: flag '@' followed by filename address
+    int use_stack = 0;
+    uint32_t filename_addr = 0;
+
+    if (os_api->stack_peek() == '@') {
+        os_api->stack_pop();  // Remove flag '@'
+        os_api->pop_string_from_stack(filename);
+         os_api->reverse_string(filename);
+         use_stack=1;
     }
-    filename[idx] = '\0';
-    os_api->print_shell("\n\n");
+    
+
+    if (!use_stack) {
+        os_api->print_shell("Enter .BAS filename to run: ");
+        
+        // Read filename from keyboard
+        int idx = 0;
+        while (idx < 31) {
+            char c = os_api->keyboard_read();
+            if (c == '\n' || c == '\r') {
+                break;
+            } else if (c == '\b' && idx > 0) {
+                idx--;
+                os_api->print_shellc('\b');
+                os_api->print_shellc(' ');
+                os_api->print_shellc('\b');
+            } else if (c >= 32 && c < 127) {
+                filename[idx++] = c;
+                os_api->print_shellc(c);
+            }
+        }
+        filename[idx] = '\0';
+
+    }
     
     // Load and execute the file
     buffer = (uint8_t*)FILE_BUFFER_ADDR;
     if (os_api->fat16_file_load(filename, buffer) == 0) {
-        os_api->print_shell("Loading: ");
-        os_api->print_shell(filename);
-        os_api->print_shell("\n\n");
+        os_api->print_shell("\n");
         parse_program((char*)buffer);
         execute_program();
     } else {
-        os_api->print_shell("Error: Could not load file '\n");
+        os_api->print_shell("Error: Could not load file '");
         os_api->print_shell(filename);
         os_api->print_shell("'\n");
         os_api->print_shell("\nPress any key to exit...\n");

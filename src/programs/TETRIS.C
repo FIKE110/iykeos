@@ -3,7 +3,7 @@
 #include <stddef.h>
 
 // Adjustable game speed - higher = slower
-int game_speed = 1000;
+int game_speed = 500;
 
 #define OS_API_ADDR 0x5F0F0
 

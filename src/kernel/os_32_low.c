@@ -183,7 +183,7 @@ void draw_pixel(int x, int y, uint8_t color);
 void save_file(const char* filename, uint8_t* buffer);
 void change_cursor(uint8_t x, uint8_t y);
 char keyboard_getchar();
-void restore_vga_font_safe();
+
 
 typedef struct {
     void (*print_shell)(const char*);
@@ -259,6 +259,15 @@ typedef struct {
     int (*run_with_status)(char* filename,uint32_t address);
     uint32_t (*fat16_file_size)(char* filename);
     int (*str_to_int)(const char *s);
+    void (*stack_push)(uint32_t);
+    uint32_t (*stack_pop)(void);
+    uint32_t (*stack_peek)(void);
+    int (*stack_is_empty)(void);
+    int (*stack_is_full)(void);
+    void (*stack_clear)(void);
+    uint8_t (*push_string_to_stack)(char* str);
+    uint8_t (*pop_string_from_stack)(char* str);
+    void (*reverse_string)(char* str);
 
 } os_api_t;
 
@@ -268,6 +277,42 @@ static uint32_t rng_state;
 static uint32_t boot_cycles_low;
 static uint32_t boot_cycles_high;
 static int gfx_mode = 0;
+
+#define MINI_STACK_SIZE 100
+static uint32_t mini_stack[MINI_STACK_SIZE];
+static int mini_stack_top = 0;
+
+void mini_stack_push(uint32_t value) {
+    if (mini_stack_top < MINI_STACK_SIZE) {
+        mini_stack[mini_stack_top++] = value;
+    }
+}
+
+uint32_t mini_stack_pop(void) {
+    if (mini_stack_top > 0) {
+        return mini_stack[--mini_stack_top];
+    }
+    return 0;
+}
+
+uint32_t mini_stack_peek(void) {
+    if (mini_stack_top > 0) {
+        return mini_stack[mini_stack_top - 1];
+    }
+    return 0;
+}
+
+int mini_stack_is_empty(void) {
+    return mini_stack_top == 0;
+}
+
+int mini_stack_is_full(void) {
+    return mini_stack_top >= MINI_STACK_SIZE;
+}
+
+void mini_stack_clear(void) {
+    mini_stack_top = 0;
+}
 
 
 void mouse_init() {
@@ -412,7 +457,7 @@ void set_vga_mode(uint8_t mode) {
         uint8_t* vga_mem = (uint8_t*)0xA0000;
         for(int i=0; i<320*200; i++) vga_mem[i] = 0;
     } else {
-        restore_vga_font_safe();
+      
         screen_print_shell("Switching to text mode\n");
         write_vga_regs(g_80x25_text);
         gfx_mode = 0;
@@ -516,64 +561,6 @@ void redraw_input_line() {
     move_cursor(cursor_row, cursor_col);
 }
 
-uint8_t saved_font[4096];
-
-void save_vga_font() {
-    outb(0x3CE, 0x04); outb(0x3CF, 0x02);
-
-    uint8_t *vga_mem = (uint8_t *)0xA0000;
-    for (int i = 0; i < 4096; i++) {
-        saved_font[i] = vga_mem[i];
-    }
-
-    outb(0x3CE, 0x04); outb(0x3CF, 0x00);
-}
-
-void restore_vga_font_safe() {
-    inb_s(0x3DA);
-    outb(0x3C4, 0x00); outb(0x3C5, 0x01);
-    outb(0x3C4, 0x02); outb(0x3C5, 0x04);
-    outb(0x3C4, 0x04); outb(0x3C5, 0x07);
-    outb(0x3C4, 0x00); outb(0x3C5, 0x03);
-
-    outb(0x3CE, 0x04); outb(0x3CF, 0x02);
-    outb(0x3CE, 0x05); outb(0x3CF, 0x00);
-    outb(0x3CE, 0x06); outb(0x3CF, 0x00);
-
-    uint8_t *vga_mem = (uint8_t *)0xA0000;
-    for (int i = 0; i < 4096; i++) {
-        vga_mem[i] = saved_font[i];
-    }
-
-    outb(0x3C4, 0x00); outb(0x3C5, 0x01);
-    outb(0x3C4, 0x02); outb(0x3C5, 0x03);
-    outb(0x3C4, 0x04); outb(0x3C5, 0x03);
-    outb(0x3C4, 0x00); outb(0x3C5, 0x03);
-
-    outb(0x3CE, 0x04); outb(0x3CF, 0x00);
-    outb(0x3CE, 0x05); outb(0x3CF, 0x10);
-    outb(0x3CE, 0x06); outb(0x3CF, 0x0E);
-}
-
-void restore_vga_font() {
-    outb(0x3C4, 0x02); outb(0x3C5, 0x04);
-    outb(0x3C4, 0x04); outb(0x3C5, 0x07);
-
-    outb(0x3CE, 0x04); outb(0x3CF, 0x02);
-    outb(0x3CE, 0x05); outb(0x3CF, 0x00);
-    outb(0x3CE, 0x06); outb(0x3CF, 0x00);
-
-    uint8_t *vga_mem = (uint8_t *)0xA0000;
-    for (int i = 0; i < 4096; i++) {
-        vga_mem[i] = saved_font[i];
-    }
-
-    outb(0x3C4, 0x02); outb(0x3C5, 0x03);
-    outb(0x3C4, 0x04); outb(0x3C5, 0x03);
-    outb(0x3CE, 0x04); outb(0x3CF, 0x00);
-    outb(0x3CE, 0x05); outb(0x3CF, 0x10);
-    outb(0x3CE, 0x06); outb(0x3CF, 0x0E);
-}
 
 void clear_input_line() {
     cursor_row = prompt_row;
@@ -847,15 +834,159 @@ void save_file_size(char* filename, uint8_t* buffer, uint32_t size) {
     fat16_file_save(filename, buffer, size);
 }
 
+uint8_t push_string_to_stack(char* args){
+     if(mini_stack_is_full()){
+            return 0;
+        }
+        mini_stack_push((uint32_t) '\0');
+        while(*args!='\0'){
+            mini_stack_push((uint32_t) *args);
+            args++;
+        }
+        return 1;
+}
+
+uint8_t pop_string_from_stack(char* str){
+        if(mini_stack_is_empty()){
+            return 0;
+        }
+
+        char* ptr=str;
+        char c=(char) mini_stack_pop();
+        do{
+            *ptr=c;
+            c=(char) mini_stack_pop();
+            ptr++;
+        }while(c!='\0');
+
+        *ptr='\0';
+        return 1;
+}
+
+
+
 void run(char* filename){
-        const char* ext = ".BIN";
         int filename_len = strlen(filename);
+        
+        // Check for .bas file - run with TINYBASIC
+        if (filename_len > 4 && strcmp(filename + filename_len - 4, ".bas") == 0) {
+            screen_print_shell("Running with TINYBASIC: ");
+            screen_print_shell(filename);
+            screen_print_shell("\n");
+            
+            uint32_t file_size = fat16_file_size(filename);
+            if (file_size == 0) {
+                screen_print_shell("Error: File not found or is empty.\n");
+                return;
+            }
+            
+            // Load .bas file into text buffer at 0xB00000
+            char* text_buffer = (char*) 0xB00000;
+            if (fat16_file_load(filename, (uint8_t*)text_buffer) != 0) {
+                screen_print_shell("Error: Could not load file.\n");
+                return;
+            }
+            text_buffer[file_size] = '\0';
+            
+            // Store filename at text_buffer - 12
+            char* stored_filename = text_buffer - 12;
+            int i = 0;
+            while (filename[i] && i < 11) {
+                stored_filename[i] = filename[i];
+                i++;
+            }
+            stored_filename[i] = '\0';
+            
+            // Push flag and filename address onto stack for TINYBASIC
+            mini_stack_push((uint32_t)stored_filename);  // filename address
+            mini_stack_push('@');  // flag
+            
+            // Load and run TBASIC.BIN
+            uint8_t* pointer = (uint8_t*) 0xD00000;
+            uint32_t tb_size = fat16_file_size("TBASIC.BIN");
+            if (tb_size == 0) {
+                screen_print_shell("Error: TBASIC.BIN not found.\n");
+                return;
+            }
+            
+            if (fat16_file_load("TBASIC.BIN", pointer) != 0) {
+                screen_print_shell("Error: Could not load TBASIC.BIN.\n");
+                return;
+            }
+            
+            keyboard_init();
+            entry_t entry = (entry_t) pointer;
+            entry();
+            
+            // Clear the stack
+            mini_stack_clear();
+            
+            // Clear the memory after returning
+            memset((uint8_t*)0xB00000, 0, file_size + 32);
+            memset((uint8_t*)0xD00000, 0, 65536);
+            
+            screen_print_shell("TINYBASIC exited.\n");
+            return;
+        }
+        
+        // Check for .ike file - run with BASIC interpreter
+        if (filename_len > 4 && strcmp(filename + filename_len - 4, ".ike") == 0) {
+            screen_print_shell("Running with BASIC: ");
+            screen_print_shell(filename);
+            screen_print_shell("\n");
+            
+            uint8_t* pointer = (uint8_t*) 0xD00000;
+            uint32_t max_size = 65536;
+            uint32_t file_size = fat16_file_size("BASIC.ike");
+            
+            if (file_size == 0) {
+                screen_print_shell("Error: BASIC.ike not found.\n");
+                return;
+            }
+            
+            // Load the .bas file into text buffer
+            char* text_buffer = (char*) 0xB00000;
+            uint32_t bas_file_size = fat16_file_size(filename);
+            if (bas_file_size > 0) {
+                fat16_file_load(filename, (uint8_t*)text_buffer);
+                text_buffer[bas_file_size] = '\0';
+                
+                // Store filename
+                char* stored_filename = text_buffer - 12;
+                int i = 0;
+                while (filename[i] && i < 11) {
+                    stored_filename[i] = filename[i];
+                    i++;
+                }
+                stored_filename[i] = '\0';
+            }
+            
+            if (fat16_file_load("BASIC.ike", pointer) != 0) {
+                screen_print_shell("Error: Could not load BASIC.ike.\n");
+                return;
+            }
+            
+            keyboard_init();
+            entry_t entry = (entry_t) pointer;
+            entry();
+            
+            memset((uint8_t*)0xB00000, 0, bas_file_size + 32);
+            memset((uint8_t*)0xD00000, 0, 65536);
+            
+            screen_print_shell("BASIC exited.\n");
+            return;
+        }
+        
+        // Default: run .BIN file
+        const char* ext = ".BIN";
         int ext_len = strlen(ext);
+
 
         if (filename_len > ext_len && strcmp(filename + filename_len - ext_len, ext) == 0) {
             uint8_t* pointer = (uint8_t*) 0xD00000;
             uint32_t max_size = 65536;
             uint32_t file_size = fat16_file_size(filename);
+
 
             if (file_size == 0) {
                 screen_print_shell("Error: File not found or is empty.\n");
@@ -864,7 +995,7 @@ void run(char* filename){
             } else {
                 int res = fat16_file_load(filename, pointer);
                 if (res == 0) {
-                    keyboard_init();  // Reset keyboard before running program
+                    keyboard_init();
                     entry_t entry = (entry_t) pointer;
                     entry();
                 } else {
@@ -872,23 +1003,37 @@ void run(char* filename){
                 }
             }
         } else {
-            screen_print_shell("Error: Invalid file type. Only .BIN files can be executed.\n");
+            screen_print_shell("Error: Invalid file type. Use .BIN, .bas, or .ike\n");
         }
 
 }
 
 
 int run_with_status(char* filename,uint32_t address){
-        const char* ext = ".BIN";
         int filename_len = strlen(filename);
-        int ext_len = strlen(ext);
-
-
+        
         if(address==0){
             address=0xD00000;
         }
+        
+        if (filename_len > 4 && strcmp(filename + filename_len - 4, ".BAS") == 0) {
+            uint32_t file_size = fat16_file_size(filename);
+            if (file_size == 0) {
+                return -1;
+            }
+            
+           
+            push_string_to_stack(filename);
+            mini_stack_push('@');
+            
+            run_with_status("TBASIC.BIN",0);
+            return;
+        }
+        
+        // Default: run .BIN file
+        const char* ext = ".BIN";
+        int ext_len = strlen(ext);
 
-        screen_print_shell("running program");
         if (filename_len > ext_len && strcmp(filename + filename_len - ext_len, ext) == 0) {
             uint8_t* pointer = (uint8_t*) address;
             uint32_t max_size = 65536;
@@ -901,7 +1046,7 @@ int run_with_status(char* filename,uint32_t address){
             } else {
                 int res = fat16_file_load(filename, pointer);
                 if (res == 0) {
-                    keyboard_init();  // Reset keyboard before running program
+                    keyboard_init(); 
                     entry_t entry = (entry_t) pointer;
                     entry();
                     return 0;
@@ -934,10 +1079,11 @@ void handle_command(const char* cmd) {
     }
 
     if (strcmp(cmd, "help") == 0) {
-        screen_print_shell("Commands: help, clear, version, uptime, date, time, reboot, exit\n");
-        screen_print_shell("Files:    ls, cat <f>, touch <f>, rm <f>, cp <s> <d>, mv <s> <d>\n");
-        screen_print_shell("Dirs:     mkdir <d>, rmdir <d>, cd <d>, pwd\n");
-        screen_print_shell("Apps:     edit <f>, basic <f>, gfx, text\n");
+        screen_print_shell("System:  help, clear, version, uptime, date, time, reboot, exit, shutdown\n");
+        screen_print_shell("Files:   ls, cat <f>, touch <f>, rm <f>, cp <s> <d>, mv <s> <d>\n");
+        screen_print_shell("Dirs:    mkdir <d>, rmdir <d>, cd <d>, pwd\n");
+        screen_print_shell("Apps:    edit <f>, basic <f>, iyke <f>, run <f>, gfx, text, window, games\n");
+        screen_print_shell("Utils:   echo <msg>, hello, random <n>, push <str>, pop\n");
     }
 
     else if (strcmp(cmd, "clear") == 0) {
@@ -955,7 +1101,9 @@ void handle_command(const char* cmd) {
     }
 
     else if (strcmp(cmd, "window") == 0) {
+        save_vga(0);
         run_with_status("GUI.BIN", 0x01000000);
+        load_vga(0);
     }
      else if (starts_with(cmd, "random")) {
         char* number = (char*)(cmd + 7);
@@ -970,7 +1118,9 @@ void handle_command(const char* cmd) {
         screen_putc_shell('\n');
     }
     else if (strcmp(cmd, "games") == 0) {
+        save_vga(0);
         run_with_status("GAME.BIN", 0x01200000);
+        load_vga(0);
     }
     else if(starts_with(cmd,"edit ")){
         char* filename = (char*)(cmd + 5);
@@ -1168,7 +1318,17 @@ void handle_command(const char* cmd) {
 
     else if(starts_with(cmd,"touch ")){
         const char* filename = cmd + 6;
-        fat16_file_save(filename, (uint8_t*)"", 0);
+        char* s=filename;
+         while (*s != ' ' && *s != '\t') s++;
+         s++;
+         int len=strlen(s);
+         if(len==0){
+            fat16_file_save(filename, (uint8_t*) "", 0);    
+         }
+         else{
+             fat16_file_save(filename, (uint8_t*) s, strlen(s));
+         }
+    
         screen_print_shell("File created.\n");
     }
     else if(starts_with(cmd,"rm ")){
@@ -1269,6 +1429,25 @@ void handle_command(const char* cmd) {
         screen_print_shell(current_path);
         screen_print_shell("\n");
     }
+    else if(starts_with(cmd,"push")){
+        if(push_string_to_stack(cmd + 5)==0){
+             screen_print_shell("Stack is full\n");
+            return;
+        }
+    }
+    else if(starts_with(cmd,"pop")){
+        char str[50];
+        if(pop_string_from_stack(str)==0){
+            screen_print_shell("Stack is empty\n");
+            return;
+        }
+        reverseString(str);
+        screen_print_shell(str);
+       
+        screen_print_shell("\n");
+       
+    }
+    
     else if (starts_with(cmd, "utils")) {
         const char* args = cmd + 5;
         if (*args == ' ') args++;
@@ -1302,9 +1481,10 @@ void handle_command(const char* cmd) {
         }
     }
      else if(starts_with(cmd,"run ")){
+        // save_vga(0);
         const char* filename = cmd + 4;
-        run((char*)filename);
-
+        run_with_status((char*)filename, 0);
+        // load_vga(0);
     }
     else {
         screen_print_shell("Unknown command: ");
@@ -1565,6 +1745,15 @@ void init_api(){
     os_api->run_with_status=&run_with_status;
     os_api->fat16_file_size=&fat16_file_size;
     os_api->str_to_int=&str_to_int;
+    os_api->stack_push=&mini_stack_push;
+    os_api->stack_pop=&mini_stack_pop;
+    os_api->stack_peek=&mini_stack_peek;
+    os_api->stack_is_empty=&mini_stack_is_empty;
+    os_api->stack_is_full=&mini_stack_is_full;
+    os_api->stack_clear=&mini_stack_clear;
+    os_api->push_string_to_stack=&push_string_to_stack;
+    os_api->pop_string_from_stack=&pop_string_from_stack;
+    os_api->reverse_string=&reverseString;
 }
 
 void start_shell(){
@@ -1583,7 +1772,6 @@ void start_shell(){
 #define OS_SELECTION_ADDR 0x90000
 
 void os_main(void){
-    save_vga_font();
     init_api();
     __asm__ volatile ("rdtsc" : "=a"(boot_cycles_low), "=d"(boot_cycles_high));
     rng_seed();

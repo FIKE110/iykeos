@@ -97,7 +97,7 @@ sudo cp ./build/files.bin "$MNT_POINT/FILES.BIN"
 sudo cp ./build/runner.bin "$MNT_POINT/RUNNER.BIN"
 sudo cp ./build/edit.bin "$MNT_POINT/EDIT.BIN"
 sudo cp ./build/tinybasic.bin "$MNT_POINT/TBASIC.BIN"
-sudo cp ./src/programs/DEMO.BAS "$MNT_POINT/DEMO.BAS"
+sudo cp ./src/programs/Demo.bas "$MNT_POINT/DEMO.BAS"
 
 if [ -d "./assets/txt" ]; then
     for file in ./assets/txt/*.txt; do

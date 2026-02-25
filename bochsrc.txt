@@ -1,0 +1,44 @@
+# Bochs Configuration for iykeOS
+
+# ROM and BIOS
+romimage: file=$BXSHARE/BIOS-bochs-latest
+vgaromimage: file=$BXSHARE/VGABIOS-lgpl-latest
+
+# Memory
+megs: 32
+
+# Disk configuration
+ata0: enabled=1, ioaddr1=0x1f0, ioaddr2=0x3f0, irq=14
+ata0-master: type=disk, path=build/harddisk.img, mode=flat, cylinders=18, heads=16, spt=63
+
+# Boot
+boot: disk
+
+# Floppy (optional - disabled)
+# floppy_bootsig_check: disabled=0
+
+# Display
+display_library: sdl2
+
+# Keyboard
+keyboard: type=mf, serial_delay=250
+
+# Mouse
+mouse: enabled=0
+
+# Serial ports (optional)
+# serial1: enabled=1, mode=file, dev=serial.log
+
+# Parallel port (optional)
+# parport1: enabled=1, file="/dev/lp0"
+
+# Sound (optional - disabled for simpler setup)
+# sound: driver=default, all=0
+
+# Log
+log: bochslog.txt
+logprefix: %t-%e-%i
+debug: action=ignore
+
+# CPU
+cpu: count=1, ips=50000000

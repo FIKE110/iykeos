@@ -44,6 +44,24 @@
 #define TEXT_BUFFER_ADDR 0xBAB000
 
 
+#define COLOR_BLACK         0x0
+#define COLOR_BLUE          0x1
+#define COLOR_GREEN         0x2
+#define COLOR_CYAN          0x3
+#define COLOR_RED           0x4
+#define COLOR_MAGENTA       0x5
+#define COLOR_BROWN         0x6
+#define COLOR_LIGHT_GRAY    0x7
+#define COLOR_DARK_GRAY     0x8
+#define COLOR_LIGHT_BLUE    0x9
+#define COLOR_LIGHT_GREEN   0xA
+#define COLOR_LIGHT_CYAN    0xB
+#define COLOR_LIGHT_RED     0xC
+#define COLOR_LIGHT_MAGENTA 0xD
+#define COLOR_YELLOW        0xE
+#define COLOR_WHITE         0xF
+
+
 char* current_filename = (char*)(TEXT_BUFFER_ADDR - FILENAME_SIZE);
 
 int text_length = 0;
@@ -138,6 +156,15 @@ typedef struct {
     int (*run_with_status)(char* filename,uint32_t address);
     uint32_t (*fat16_file_size)(char* filename);
     int (*str_to_int)(const char *s);
+    void (*stack_push)(uint32_t);
+    uint32_t (*stack_pop)(void);
+    uint32_t (*stack_peek)(void);
+    int (*stack_is_empty)(void);
+    int (*stack_is_full)(void);
+    void (*stack_clear)(void);
+    uint8_t (*push_string_to_stack)(char* str);
+    uint8_t (*pop_string_from_stack)(char* str);
+    void (*reverse_string)(char* str);
 
 } os_api_t;
 
@@ -293,7 +320,8 @@ void render(){
 }
 
 void print_banner_border(char c,int number){
-    for(int i=0;i<80*25;i++){
+    for(int i=0;i<80;i++){
+        //  os_api->vgraphics_put_char(i,,c,COLOR_WHITE);
          render_buffer[i]=c;
     }
 }
@@ -315,14 +343,15 @@ void move_cursor(uint8_t x,uint8_t y){
 
 void print_top_nav(){
     print_banner_border(' ',40-6);
-    move_cursor(0,40-6);
-    print_string("TEXT EDITOR (",13);
+    move_cursor(0,34);
+    os_api->vgraphics_put_string(34,0,"TEXT EDITOR (",COLOR_WHITE);
+
     for(int i=0;i<12;i++){
         if(current_filename[i]==0){
-            render_buffer[0*80+ (40-6+13 + i)]=')';
+             os_api->vgraphics_put_char(47+i,0,')',COLOR_WHITE);
             break;
         }
-         render_buffer[0*80+ (40-6+13 + i)]=current_filename[i];
+        os_api->vgraphics_put_char(47+i,0,current_filename[i],COLOR_WHITE);
     }
 }
 
@@ -330,9 +359,11 @@ void print_bottom_nav(){
       move_cursor(24,0);
       if(saved==1){
           move_cursor(24,0);
+          os_api->vgraphics_put_string(0,24,"======SAVE(CTRL+S)  EXIT(CTRL+Q)  NEW(CTRL+N) LOAD(CTRL+L) MODE(CTRL) (S)======",COLOR_WHITE);
           print_string("======SAVE(CTRL+S)  EXIT(CTRL+Q)  NEW(CTRL+N) LOAD(CTRL+L) MODE(CTRL) (S)======",80);
           return;
       }
+      
           print_string("======SAVE(CTRL+S)  EXIT(CTRL+Q)  NEW(CTRL+N) LOAD(CTRL+L) MODE(CTRL) (N)======",80);
 }
 
@@ -568,9 +599,12 @@ void main(){
     init_api();
     os_api->save_vga(0);
     os_api->screen_clear_shell();
+    os_api->vgraphics_init();
     os_api->move_cursor(cursor_row,cursor_col);
     print_top_nav();
-    print_bottom_nav();
+    // print_bottom_nav();
+    os_api->vgraphics_repaint();
+    while(1){}
     update_control_mode_indicator();
     parse_text_buffer_to_line_buffer();
     render_text_panel();

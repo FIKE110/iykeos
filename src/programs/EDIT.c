@@ -761,6 +761,7 @@ int main(void) {
     os_api->keyboard_init();
     os_api->disable_cursor();
     
+
     /* Clear and setup */
     clear_buffer();
     

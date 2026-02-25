@@ -266,13 +266,11 @@ void load_all_high_scores(int* scores, int num_games) {
     
     // Load existing file
     int size = os_api->fat16_file_load("GAMES.TXT", buffer);
-    if (size <= 0) {
         // File exists but couldn't load, use zeros
         for (int i = 0; i < num_games; i++) {
             scores[i] = 0;
         }
         return;
-    }
     
     // Parse scores
     buffer[size] = '\0';
