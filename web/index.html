@@ -1037,6 +1037,17 @@ window.onload = async function()
         }, 0);
     };
     
+    // Auto-set scale to 0.5 on smaller screens
+    function checkScreenSize() {
+        const scaleInput = document.getElementById("scale");
+        if (window.innerWidth < 950) {
+            scaleInput.value = "0.5";
+            scaleInput.dispatchEvent(new Event("change"));
+        }
+    }
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+    
     // Cache management buttons
     document.getElementById("clear_cache").onclick = async function() {
         if (confirm("Clear all cached assets? You'll need to download ~9MB again next time.")) {
