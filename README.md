@@ -50,6 +50,7 @@ IYKEOS includes several fully-functional arcade games built natively for the OS:
 | **Snake II** | Enhanced version with improved graphics and gameplay | Arrow keys to control |
 | **Pong** | Two-player paddle and ball game | Player 1: W/S, Player 2: Up/Down arrows |
 | **Breakout** | Brick-breaking paddle game | Arrow keys to move paddle, Space to launch ball |
+| **Runner** | Endless runner obstacle game | Arrow keys to jump/duck |
 
 ### Command Line Interface
 
@@ -68,6 +69,7 @@ The shell provides a Unix-like command environment with the following commands:
 | `cp <src> <dst>` | Copy file to new location |
 | `mv <src> <dst>` | Move or rename file |
 | `edit <file>` | Open file in built-in text editor |
+| `tinybasic <file>` | Run Tiny BASIC interpreter program |
 | `basic <file>` | Run BASIC interpreter program |
 | `game` | Launch game menu directly |
 | `window` | Launch GUI desktop environment |
@@ -94,14 +96,11 @@ The GUI provides a complete desktop environment with:
 | Application | Function |
 |-------------|----------|
 | **Files** | File manager with directory navigation and file operations |
-| **Edit** | Full-featured text editor with New, Open, Save, and Exit |
-| **Notes** | Simple notepad for quick text entry |
+| **Edit** | Full-featured text editor with file operations |
 | **Calc** | Calculator supporting basic arithmetic operations |
-| **Web** | Web browser framework (placeholder for future networking) |
-| **Music** | Music player interface (placeholder for audio support) |
-| **Video** | Video player interface (placeholder for multimedia) |
-| **Config** | System information and configuration display |
-| **Help** | Built-in documentation viewer |
+| **Notes** | Simple notepad for quick text entry |
+| **Runner** | Endless runner game |
+| **Clock** | Digital clock display |
 
 ## Architecture
 
@@ -184,6 +183,8 @@ iykeos/
 ├── linker.ld                  # Kernel linker script
 ├── linker2.ld                 # User program linker script
 ├── linker_os.ld               # OS binary linker script
+├── linker_game.ld             # Game linker script
+├── linker_gui.ld              # GUI linker script
 │
 ├── lib/                       # OS Libraries (statically linked)
 │   ├── graphics.c/h          # VGA graphics primitives and drawing functions
@@ -213,17 +214,23 @@ iykeos/
 │   ├── programs/
 │   │   ├── code_entry.asm         # Program entry stub for user apps
 │   │   ├── HELLO.c                # Hello world demo program
-│   │   ├── EDITOR.c               # Text editor application
+│   │   ├── EDIT.c                 # Text editor application
+│   │   ├── EDITOR.c               # Alternative text editor
 │   │   ├── BASIC.c                # BASIC interpreter
+│   │   ├── TINYBASIC.c            # Tiny BASIC interpreter
 │   │   ├── gui.c                  # Basic GUI (legacy version)
 │   │   ├── gui2.c                 # Enhanced GUI with full features
+│   │   ├── FILES.c                # File manager application
 │   │   ├── SPACEINVADERS.c        # Space Invaders game
 │   │   ├── TETRIS.C               # Tetris puzzle game
 │   │   ├── SNAKE.C                # Classic Snake game
 │   │   ├── SNAKE2.C               # Enhanced Snake game
 │   │   ├── PONG.C                 # Pong paddle game
 │   │   ├── BREAKOUT.c             # Breakout brick game
-│   │   └── GAME.c                 # Game menu/launcher
+│   │   ├── RUNNER.c               # Endless runner game
+│   │   ├── GAME.c                 # Game menu/launcher
+│   │   ├── Demo.bas               # BASIC demo program
+│   │   └── DEMO.BAS               # Alternative BASIC demo
 │   │
 │   └── tests/
 │       ├── kernel_entry_high.asm  # Test kernel entry
@@ -234,7 +241,12 @@ iykeos/
 │   └── txt/                     # Sample text files for testing
 │       ├── hello.txt
 │       ├── obi.txt
-│       └── ...
+│       ├── owerri.txt
+│       ├── sam.txt
+│       ├── samurai.txt
+│       ├── java.txt
+│       ├── obito.txt
+│       └── yep.txt
 │
 ├── web/                        # Browser-based emulator
 │   ├── index.html              # Emulator interface with controls
@@ -508,7 +520,7 @@ This is an educational open-source project. Contributions are welcome!
 **Author:** Chihurum Fortune  
 **Project:** IYKEOS (Ike Operating System)  
 **Version:** 0.3  
-**Repository:** https://github.com/username/iykeos
+**Repository:** https://github.com/fike110/iykeos
 
 ---
 
