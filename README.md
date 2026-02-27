@@ -6,7 +6,7 @@
 
 A lightweight, educational 32-bit operating system for x86 architecture featuring a microkernel design, boot menu, multiple arcade games, graphical user interface, command-line shell, FAT16 filesystem support, and a web-based emulator.
 
-![IYKEOS Logo](https://via.placeholder.com/600x200/003399/FFFFFF?text=IYKEOS)
+![IYKEOS Logo](web/assets/image.png)
 
 ## Overview
 
