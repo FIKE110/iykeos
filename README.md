@@ -33,6 +33,8 @@ IYKEOS is a hobby operating system developed for educational purposes. It demons
 ### Boot Menu
 On startup, users are presented with an interactive boot menu:
 
+![Boot Menu](screenshots/os_menu.png)
+
 1. **Boot into FORTUNE_OS CLI** - Command-line shell interface
 2. **Boot into FORTUNE_OS Graphics** - Launch GUI desktop directly
 3. **Check out Kernel Games** - Arcade game launcher with multiple titles
@@ -41,6 +43,8 @@ On startup, users are presented with an interactive boot menu:
 ### Games Collection
 
 IYKEOS includes several fully-functional arcade games built natively for the OS:
+
+![Game Interface](screenshots/gameinterface.png)
 
 | Game | Description | Controls |
 |------|-------------|----------|
@@ -52,7 +56,13 @@ IYKEOS includes several fully-functional arcade games built natively for the OS:
 | **Breakout** | Brick-breaking paddle game | Arrow keys to move paddle, Space to launch ball |
 | **Runner** | Endless runner obstacle game | Arrow keys to jump/duck |
 
+![Tetris](screenshots/tetris.png)
+![Snake](screenshots/snake.png)
+![Pong](screenshots/pong.png)
+
 ### Command Line Interface
+
+![CLI](screenshots/cli.png)
 
 The shell provides a Unix-like command environment with the following commands:
 
@@ -83,6 +93,8 @@ The shell provides a Unix-like command environment with the following commands:
 
 ### Graphical User Interface
 
+![GUI](screenshots/gui.png)
+
 The GUI provides a complete desktop environment with:
 
 - **Window Manager** - Supports full-screen and windowed applications with borders
@@ -101,6 +113,9 @@ The GUI provides a complete desktop environment with:
 | **Notes** | Simple notepad for quick text entry |
 | **Runner** | Endless runner game |
 | **Clock** | Digital clock display |
+
+![Files](screenshots/files.png)
+![Editor](screenshots/editor.png)
 
 ## Architecture
 
